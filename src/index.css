@@ -1,0 +1,330 @@
+@import "tailwindcss";
+
+/* === 不二设计风格 - 品牌变量 === */
+:root {
+  --blue: #2B7FD8;
+  --yellow: #F4D758;
+  --red: #E84A5F;
+  --cream: #fefcf6;
+  --ink: #1A1A2E;
+  --ink-light: #4A4A5A;
+  --ink-faint: #8A8A9A;
+  --card-bg: #fff;
+  --border: rgba(26,26,26,.08);
+}
+
+*, *::before, *::after { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--cream);
+  min-height: 100vh;
+}
+
+::selection {
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+/* === 卡片样式 === */
+.card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: clamp(20px, 3vw, 32px);
+  box-shadow: 0 2px 12px rgba(0,0,0,.04);
+  transition: transform .2s, box-shadow .2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+}
+
+/* === 按钮样式 === */
+.btn-primary {
+  background: var(--blue);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.btn-primary:hover {
+  background: #1e6bc4;
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  background: var(--ink-faint);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--blue);
+  border: 1.5px solid var(--blue);
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.btn-secondary:hover {
+  background: rgba(43,127,216,0.08);
+}
+
+/* === 输入框 === */
+.app-input {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  transition: border-color .2s;
+  background: var(--card-bg);
+  width: 100%;
+  color: var(--ink);
+}
+
+.app-input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(43,127,216,0.1);
+}
+
+.app-input::placeholder {
+  color: var(--ink-faint);
+}
+
+/* === Badge样式 === */
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-service {
+  background: rgba(43,127,216,0.1);
+  color: var(--blue);
+}
+
+.badge-non-service {
+  background: rgba(232,74,95,0.1);
+  color: var(--red);
+}
+
+.badge-available {
+  background: rgba(45,106,79,0.1);
+  color: #2d6a4f;
+}
+
+.badge-full {
+  background: rgba(232,74,95,0.1);
+  color: var(--red);
+}
+
+/* === 志愿选择卡片 === */
+.choice-card {
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  background: var(--card-bg);
+  transition: all .2s;
+}
+
+.choice-card.selected {
+  border-color: var(--blue);
+  background: rgba(43,127,216,0.04);
+}
+
+.choice-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.choice-1 { 
+  background: var(--yellow); 
+  color: var(--ink); 
+}
+
+.choice-2 { 
+  background: #C0C0C0; 
+  color: var(--ink); 
+}
+
+.choice-3 { 
+  background: #CD7F32; 
+  color: white; 
+}
+
+/* === 门店卡片 === */
+.store-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 20px;
+  border: 2px solid var(--border);
+  transition: all .2s;
+  cursor: pointer;
+}
+
+.store-card:hover {
+  border-color: var(--blue);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+}
+
+.store-card.selected {
+  border-color: var(--blue);
+  background: rgba(43,127,216,0.04);
+}
+
+.store-card.full {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f8f8f8;
+}
+
+.store-card.full:hover {
+  border-color: var(--border);
+  transform: none;
+  box-shadow: none;
+}
+
+/* === 进度条 === */
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .3s ease;
+}
+
+.progress-fill.low { background: #2d6a4f; }
+.progress-fill.medium { background: var(--yellow); }
+.progress-fill.high { background: var(--red); }
+
+/* === Tab栏 === */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 2px solid var(--border);
+  padding: 0 1.5rem;
+  background: var(--cream);
+}
+
+.tab {
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--ink-light);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all .2s;
+  white-space: nowrap;
+}
+
+.tab.active {
+  border-bottom-color: var(--blue);
+  color: var(--blue);
+  font-weight: 600;
+}
+
+.tab:hover:not(.active) {
+  color: var(--ink);
+}
+
+/* === 表格 === */
+.app-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.app-table th {
+  background: var(--cream);
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--ink-light);
+  border-bottom: 2px solid var(--border);
+}
+
+.app-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.app-table tr:hover {
+  background: rgba(43,127,216,0.04);
+}
+
+/* === 统计数字 === */
+.stat-number {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--ink-light);
+  margin-top: 4px;
+}
+
+/* === 动画 === */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn .4s ease-out;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+}
+
+/* === 响应式 === */
+@media (max-width: 768px) {
+  .stat-number {
+    font-size: 2rem;
+  }
+}
