@@ -1,14 +1,14 @@
 {
   "service": [
-    {"name": "小米之家北京朝阳区三里屯太古里店", "capacity": 3, "type": "服务"},
-    {"name": "小米之家北京朝阳区大悦城店", "capacity": 3, "type": "服务"},
-    {"name": "小米之家北京海淀区西三旗万象汇专卖店", "capacity": 2, "type": "服务"},
-    {"name": "小米之家北京海淀西北旺万象汇专卖店", "capacity": 2, "type": "服务"},
-    {"name": "小米之家北京海淀区清河万象汇店", "capacity": 2, "type": "服务"},
-    {"name": "小米之家北京海淀区牡丹园翠微百货专卖店", "capacity": 2, "type": "服务"},
-    {"name": "小米之家北京海淀区五道口购物中心专卖店", "capacity": 2, "type": "服务"},
-    {"name": "小米之家北京海淀区枫蓝国际购物中心专卖店", "capacity": 2, "type": "服务"},
-    {"name": "小米之家北京海淀区万柳华联专卖店", "capacity": 2, "type": "服务"}
+    {"name": "小米之家北京海淀区华宇购物中心专卖店", "capacity": 2, "type": "服务"},
+    {"name": "小米之家北京海淀区翠微印象城专卖店", "capacity": 2, "type": "服务"},
+    {"name": "小米之家北京海淀区大悦城专卖店", "capacity": 3, "type": "服务"},
+    {"name": "小米之家北京昌平区超级合生汇专卖店", "capacity": 3, "type": "服务"},
+    {"name": "小米之家北京昌平区首开Long街南区专卖店", "capacity": 2, "type": "服务"},
+    {"name": "小米之家北京西城区庄胜广场专卖店", "capacity": 2, "type": "服务"},
+    {"name": "小米之家北京丰台槐房万达专卖店", "capacity": 2, "type": "服务"},
+    {"name": "小米之家北京东城国瑞城购物中心专卖店", "capacity": 2, "type": "服务"},
+    {"name": "小米之家朝阳区悠唐专卖店", "capacity": 2, "type": "服务"}
   ],
   "nonService": [
     {"name": "小米之家北京海淀区西三旗万象汇专卖店", "capacity": 2, "type": "非服务"},
