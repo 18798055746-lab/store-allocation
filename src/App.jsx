@@ -219,8 +219,7 @@ function App() {
   // 过滤门店
   const filteredStores = stores.filter(store => {
     const matchesSearch = store.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = storeTypeFilter === 'all' || storeTypeFilter === store.type;
-    return matchesSearch && matchesType;
+    return matchesSearch;
   });
 
   // 格式化时间
