@@ -92,9 +92,27 @@ function App() {
     setLoading(true); setError('');
     try {
       const res = await axios.post('/api/allocate', { studentId: student.id, name: student.name, choices: vc });
-      if (res.data.success) { setResult(res.data); setStep(3); }
-      else setError(res.data.message);
+      if (res.data.success) {
+        setResult(res.data);
+        setStep(3);
+      } else {
+        setError(res.data.message);
+      }
     } catch (e) { setError('提交失败'); }
+    finally { setLoading(false); }
+  };
+
+  const handleQueryResult = async () => {
+    setLoading(true); setError('');
+    try {
+      const res = await axios.post('/api/verify', { studentId: student.id, name: student.name });
+      if (res.data.alreadyAllocated) {
+        setResult({ data: { store: res.data.store, choice: res.data.choice || 0 }, message: res.data.message });
+        setStep(4);
+      } else {
+        setError('暂无分配结果');
+      }
+    } catch (e) { setError('查询失败'); }
     finally { setLoading(false); }
   };
 
@@ -270,14 +288,10 @@ function App() {
       <div className="card fade-in" style={{ maxWidth: 500, width: '100%', textAlign: 'center' }}>
         <div style={{ fontSize: '4rem', marginBottom: 24 }}>🎉</div>
         <h1 style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1.8rem', fontWeight: 700, marginBottom: 16 }}>提交成功！</h1>
-        <div style={{ background: 'var(--blue)', color: 'white', padding: 24, borderRadius: 12, marginBottom: 24 }}>
-          <p style={{ fontSize: '1rem', marginBottom: 8, opacity: 0.9 }}>你被分配到</p>
-          <p style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1.3rem', fontWeight: 700 }}>{result.data.store}</p>
-          <p style={{ fontSize: '0.9rem', marginTop: 8, opacity: 0.8 }}>（第{result.data.choice}志愿）</p>
-        </div>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-          <button onClick={handleBack} className="btn-secondary">返回</button>
-          <button onClick={() => window.location.reload()} className="btn-primary">完成</button>
+        <p style={{ color: 'var(--ink-light)', marginBottom: 24, fontSize: '0.95rem' }}>你的志愿已成功提交，请等待分配结果。</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <button onClick={handleQueryResult} disabled={loading} className="btn-primary" style={{ width: '100%' }}>{loading ? '查询中...' : '📋 查看分配结果'}</button>
+          <button onClick={handleBack} className="btn-secondary" style={{ width: '100%' }}>返回登录</button>
         </div>
       </div>
     </div>
