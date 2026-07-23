@@ -251,11 +251,11 @@ function App() {
               <h3 style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1.1rem', fontWeight: 700, marginBottom: 16 }}>📍 门店详情</h3>
               <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 16 }}>{selectedStore.name}</p>
               <div style={{ background: 'rgba(43,127,216,0.06)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                <div style={{ marginBottom: 12 }}><span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>📍 地址：</span><span style={{ fontSize: '0.9rem' }}>{selectedStore.address || '暂无'}</span></div>
-                <div style={{ marginBottom: 12 }}><span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>🚗 距科技园：</span><span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{selectedStore.distance || '暂无'} 公里</span></div>
-                <div><span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>👥 容纳：</span><span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{selectedStore.capacity} 人</span></div>
+                <div style={{ marginBottom: 12 }}><span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>👥 容纳人数：</span><span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{selectedStore.capacity} 人</span></div>
+                <div style={{ marginBottom: 12 }}><span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>📊 已选人数：</span><span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{selectedStore.enrolled} 人</span></div>
+                <div><span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>✨ 剩余名额：</span><span style={{ fontSize: '0.9rem', fontWeight: 600, color: selectedStore.remaining > 0 ? '#2d6a4f' : 'var(--red)' }}>{selectedStore.remaining} 人</span></div>
               </div>
-              <a href={`https://uri.amap.com/search?keyword=${encodeURIComponent(selectedStore.name)}`} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: 12 }}>🗺️ 高德地图导航</a>
+              <a href={`https://uri.amap.com/search?keyword=${encodeURIComponent(selectedStore.name)}`} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: 12 }}>🗺️ 高德地图搜索门店位置</a>
               <button onClick={() => setSelectedStore(null)} className="btn-secondary" style={{ width: '100%' }}>关闭</button>
             </div>
           </div>
