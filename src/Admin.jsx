@@ -214,24 +214,41 @@ function Admin() {
               学员清单 <span style={{ fontSize: '0.85rem', color: 'var(--ink-faint)', fontWeight: 400, marginLeft: 8 }}>共{students.length}人</span>
             </h2>
             {/* 添加学员 */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <div><label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>工号</label><input value={newStudent.id} onChange={e => setNewStudent({ ...newStudent, id: e.target.value })} className="app-input" style={{ width: 120 }} placeholder="如 S001" /></div>
-              <div><label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>姓名</label><input value={newStudent.name} onChange={e => setNewStudent({ ...newStudent, name: e.target.value })} className="app-input" style={{ width: 120 }} placeholder="姓名" /></div>
-              <div><label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>类型</label>
-                <select value={newStudent.type} onChange={e => setNewStudent({ ...newStudent, type: e.target.value })} className="app-input" style={{ width: 120 }}>
-                  <option value="服务">服务</option><option value="非服务">非服务</option>
-                </select>
+            <div style={{ background: 'rgba(43,127,216,0.04)', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 12 }}>添加学员</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>工号 *</label><input value={newStudent.id} onChange={e => setNewStudent({ ...newStudent, id: e.target.value })} className="app-input" placeholder="如 S001" /></div>
+                <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>姓名 *</label><input value={newStudent.name} onChange={e => setNewStudent({ ...newStudent, name: e.target.value })} className="app-input" placeholder="姓名" /></div>
+                <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>类型</label>
+                  <select value={newStudent.type} onChange={e => setNewStudent({ ...newStudent, type: e.target.value })} className="app-input">
+                    <option value="服务">服务</option><option value="非服务">非服务</option>
+                  </select>
+                </div>
+                <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>职位名称</label><input value={newStudent.jobTitle} onChange={e => setNewStudent({ ...newStudent, jobTitle: e.target.value })} className="app-input" placeholder="职位" /></div>
+                <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>一级部门</label><input value={newStudent.dept1} onChange={e => setNewStudent({ ...newStudent, dept1: e.target.value })} className="app-input" placeholder="一级部门" /></div>
+                <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>二级部门</label><input value={newStudent.dept2} onChange={e => setNewStudent({ ...newStudent, dept2: e.target.value })} className="app-input" placeholder="二级部门" /></div>
+                <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>三级部门</label><input value={newStudent.dept3} onChange={e => setNewStudent({ ...newStudent, dept3: e.target.value })} className="app-input" placeholder="三级部门" /></div>
+                <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>四级部门</label><input value={newStudent.dept4} onChange={e => setNewStudent({ ...newStudent, dept4: e.target.value })} className="app-input" placeholder="四级部门" /></div>
+                <div><label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>五级部门</label><input value={newStudent.dept5} onChange={e => setNewStudent({ ...newStudent, dept5: e.target.value })} className="app-input" placeholder="五级部门" /></div>
               </div>
-              <button onClick={handleAddStudent} className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>+ 添加</button>
+              <button onClick={handleAddStudent} className="btn-primary" style={{ marginTop: 12, padding: '8px 20px', fontSize: '0.85rem' }}>+ 添加学员</button>
             </div>
             {/* 学员列表 */}
             <div style={{ overflowX: 'auto' }}>
               <table className="app-table">
-                <thead><tr><th>工号</th><th>姓名</th><th style={{ textAlign: 'center' }}>类型</th><th style={{ textAlign: 'center' }}>分配状态</th><th style={{ textAlign: 'center' }}>操作</th></tr></thead>
+                <thead><tr>
+                  <th>工号</th><th>姓名</th><th style={{ textAlign: 'center' }}>类型</th>
+                  <th>职位</th><th>部门路径</th>
+                  <th style={{ textAlign: 'center' }}>分配状态</th><th style={{ textAlign: 'center' }}>操作</th>
+                </tr></thead>
                 <tbody>{students.map(s => (
                   <tr key={s.id}>
                     <td>{s.id}</td><td>{s.name}</td>
                     <td style={{ textAlign: 'center' }}><span className={`badge ${s.type === '服务' ? 'badge-service' : 'badge-non-service'}`}>{s.type}</span></td>
+                    <td style={{ fontSize: '0.85rem' }}>{s.jobTitle || '-'}</td>
+                    <td style={{ fontSize: '0.85rem', color: 'var(--ink-light)', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {[s.dept1, s.dept2, s.dept3, s.dept4, s.dept5].filter(Boolean).join(' > ') || '-'}
+                    </td>
                     <td style={{ textAlign: 'center' }}>{s.allocated ? <span style={{ color: 'var(--blue)', fontWeight: 600 }}>{s.allocated}</span> : <span style={{ color: 'var(--ink-faint)' }}>未分配</span>}</td>
                     <td style={{ textAlign: 'center' }}><button onClick={() => handleDeleteStudent(s.id, s.name)} style={{ background: 'none', color: 'var(--red)', border: '1px solid var(--red)', borderRadius: 4, padding: '4px 8px', fontSize: '0.75rem', cursor: 'pointer' }}>删除</button></td>
                   </tr>

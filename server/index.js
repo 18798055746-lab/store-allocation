@@ -609,12 +609,18 @@ app.post('/api/admin/import-students', upload.single('file'), (req, res) => {
       const id = row['工号'] || row['id'];
       const name = row['姓名'] || row['name'];
       const type = row['类型'] || row['站店类型'] || row['type'] || '非服务';
-      
+      const dept1 = row['一级部门'] || '';
+      const dept2 = row['二级部门'] || '';
+      const dept3 = row['三级部门'] || '';
+      const dept4 = row['四级部门'] || '';
+      const dept5 = row['五级部门'] || '';
+      const jobTitle = row['职位名称'] || row['职位'] || '';
+
       if (id && name) {
         students[id] = {
-          id,
-          name,
-          type: type.includes('服务') && !type.includes('非服务') ? '服务' : '非服务'
+          id, name,
+          type: type.includes('服务') && !type.includes('非服务') ? '服务' : '非服务',
+          dept1, dept2, dept3, dept4, dept5, jobTitle
         };
         count++;
       }
@@ -663,10 +669,10 @@ app.get('/api/admin/students', (req, res) => {
 
 // API: 添加单个学员
 app.post('/api/admin/student', (req, res) => {
-  const { id, name, type } = req.body;
+  const { id, name, type, dept1, dept2, dept3, dept4, dept5, jobTitle } = req.body;
   if (!id || !name) return res.json({ success: false, message: '工号和姓名必填' });
   if (studentsData[id]) return res.json({ success: false, message: '工号已存在' });
-  studentsData[id] = { id, name, type: type || '非服务' };
+  studentsData[id] = { id, name, type: type || '非服务', dept1: dept1||'', dept2: dept2||'', dept3: dept3||'', dept4: dept4||'', dept5: dept5||'', jobTitle: jobTitle||'' };
   fs.writeFileSync(STUDENTS_FILE, JSON.stringify(studentsData, null, 2));
   res.json({ success: true, message: `已添加学员 ${name}` });
 });
