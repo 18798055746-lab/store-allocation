@@ -642,6 +642,45 @@ app.post('/api/admin/import-students', upload.single('file'), (req, res) => {
   }
 });
 
+// API: 清空所有分配
+app.post('/api/admin/clear-allocations', (req, res) => {
+  allocationsData = { allocations: [], timestamp: null };
+  saveAllocations();
+  // 同时清空草稿
+  draftsData = {};
+  saveDrafts();
+  res.json({ success: true, message: '已清空所有志愿分配和暂存数据' });
+});
+
+// API: 获取学员列表
+app.get('/api/admin/students', (req, res) => {
+  const list = Object.values(studentsData).map(s => {
+    const alloc = allocationsData.allocations.find(a => a.studentId === s.id);
+    return { ...s, allocated: alloc ? alloc.store : null };
+  });
+  res.json({ success: true, data: list });
+});
+
+// API: 添加单个学员
+app.post('/api/admin/student', (req, res) => {
+  const { id, name, type } = req.body;
+  if (!id || !name) return res.json({ success: false, message: '工号和姓名必填' });
+  if (studentsData[id]) return res.json({ success: false, message: '工号已存在' });
+  studentsData[id] = { id, name, type: type || '非服务' };
+  fs.writeFileSync(STUDENTS_FILE, JSON.stringify(studentsData, null, 2));
+  res.json({ success: true, message: `已添加学员 ${name}` });
+});
+
+// API: 删除单个学员
+app.delete('/api/admin/student/:studentId', (req, res) => {
+  const { studentId } = req.params;
+  if (!studentsData[studentId]) return res.json({ success: false, message: '学员不存在' });
+  const name = studentsData[studentId].name;
+  delete studentsData[studentId];
+  fs.writeFileSync(STUDENTS_FILE, JSON.stringify(studentsData, null, 2));
+  res.json({ success: true, message: `已删除学员 ${name}` });
+});
+
 // 生产环境：托管前端静态文件
 if (process.env.NODE_ENV === 'production') {
   const clientDist = path.join(__dirname, '..', 'dist');
