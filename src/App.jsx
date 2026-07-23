@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 function App() {
-  const [step, setStep] = useState(1); // 1: 登录, 2: 选择, 3: 结果, 4: 已分配查看
+  const [step, setStep] = useState(0); // 0: 首页, 1: 登录, 2: 选择, 3: 结果, 4: 已分配查看
   const [studentId, setStudentId] = useState('');
   const [name, setName] = useState('');
   const [student, setStudent] = useState(null);
@@ -12,12 +12,31 @@ function App() {
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [config, setConfig] = useState(null);
+  const [selectedStore, setSelectedStore] = useState(null);
+  const [storeTypeFilter, setStoreTypeFilter] = useState('all');
+  const [draftSaved, setDraftSaved] = useState(false);
+
+  // 获取配置
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  const fetchConfig = async () => {
+    try {
+      const response = await axios.get('/api/config');
+      if (response.data.success) {
+        setConfig(response.data.data);
+      }
+    } catch (err) {
+      console.error('获取配置失败:', err);
+    }
+  };
 
   // 获取门店列表
   useEffect(() => {
     if (step === 2 && student) {
       fetchStores();
-      // 每10秒刷新一次门店数据
       const interval = setInterval(fetchStores, 10000);
       return () => clearInterval(interval);
     }
@@ -25,9 +44,7 @@ function App() {
 
   const fetchStores = async () => {
     try {
-      const response = await axios.get('/api/stores', {
-        params: { type: student.type }
-      });
+      const response = await axios.get('/api/stores');
       if (response.data.success) {
         setStores(response.data.data);
       }
@@ -49,10 +66,16 @@ function App() {
     try {
       const response = await axios.post('/api/verify', { studentId, name });
       if (response.data.success) {
-        setStudent(response.data.data);
+        const { data } = response.data;
+        setStudent(data);
+        // 如果有草稿，恢复志愿
+        if (data.draft && data.draft.choices) {
+          const draftChoices = [...data.draft.choices];
+          while (draftChoices.length < 3) draftChoices.push(null);
+          setChoices(draftChoices);
+        }
         setStep(2);
       } else if (response.data.alreadyAllocated) {
-        // 已分配的学员，进入查看页面
         setStudent({ id: studentId, name: name, type: response.data.type || '非服务' });
         setResult({
           success: true,
@@ -63,7 +86,6 @@ function App() {
           message: response.data.message
         });
         setStep(4);
-        // 获取门店数据
         fetchStoresForView();
       } else {
         setError(response.data.message);
@@ -89,16 +111,15 @@ function App() {
 
   // 选择门店
   const handleSelectStore = (storeName) => {
-    // 检查是否已选择
     if (choices.includes(storeName)) {
-      setError('该门店已在志愿列表中');
+      const newChoices = choices.map(c => c === storeName ? null : c);
+      setChoices(newChoices);
       return;
     }
 
-    // 找到第一个空位
     const emptyIndex = choices.findIndex(c => c === null);
     if (emptyIndex === -1) {
-      setError('已选择3个志愿');
+      setError('已选择3个志愿，如需更换请先取消已选志愿');
       return;
     }
 
@@ -106,6 +127,7 @@ function App() {
     newChoices[emptyIndex] = storeName;
     setChoices(newChoices);
     setError('');
+    setDraftSaved(false);
   };
 
   // 移除志愿
@@ -113,6 +135,38 @@ function App() {
     const newChoices = [...choices];
     newChoices[index] = null;
     setChoices(newChoices);
+    setDraftSaved(false);
+  };
+
+  // 暂存志愿
+  const handleSaveDraft = async () => {
+    const validChoices = choices.filter(c => c !== null);
+    if (validChoices.length === 0) {
+      setError('请至少选择1个志愿');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await axios.post('/api/draft', {
+        studentId: student.id,
+        name: student.name,
+        choices: validChoices
+      });
+
+      if (response.data.success) {
+        setDraftSaved(true);
+        setTimeout(() => setDraftSaved(false), 3000);
+      } else {
+        setError(response.data.message);
+      }
+    } catch (err) {
+      setError('保存失败，请重试');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 提交志愿
@@ -120,6 +174,10 @@ function App() {
     const validChoices = choices.filter(c => c !== null);
     if (validChoices.length === 0) {
       setError('请至少选择1个志愿');
+      return;
+    }
+
+    if (!window.confirm('确定要提交志愿吗？提交后将无法修改！')) {
       return;
     }
 
@@ -146,365 +204,6 @@ function App() {
     }
   };
 
-  // 过滤门店
-  const filteredStores = stores.filter(store =>
-    store.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // 渲染登录页面
-  const renderLogin = () => (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--cream)' }}>
-      <div className="card max-w-md w-full fade-in">
-        <div className="text-center mb-8">
-          <div className="text-4xl mb-4">🏪</div>
-          <h1 style={{ 
-            fontFamily: "'Noto Serif SC', serif", 
-            fontSize: 'clamp(1.6rem, 4vw, 2.2rem)',
-            fontWeight: 700,
-            color: 'var(--ink)',
-            marginBottom: '8px'
-          }}>
-            门店实训志愿分配
-          </h1>
-          <p style={{ color: 'var(--ink-light)', fontSize: '0.9rem' }}>
-            2026年中国区校招生培训
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '0.85rem', 
-              fontWeight: 600, 
-              color: 'var(--ink)',
-              marginBottom: '8px' 
-            }}>
-              工号
-            </label>
-            <input
-              type="text"
-              value={studentId}
-              onChange={(e) => setStudentId(e.target.value)}
-              className="app-input"
-              placeholder="请输入工号"
-            />
-          </div>
-
-          <div>
-            <label style={{ 
-              display: 'block', 
-              fontSize: '0.85rem', 
-              fontWeight: 600, 
-              color: 'var(--ink)',
-              marginBottom: '8px' 
-            }}>
-              姓名
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="app-input"
-              placeholder="请输入姓名"
-            />
-          </div>
-
-          {error && (
-            <div style={{ 
-              color: 'var(--red)', 
-              fontSize: '0.85rem', 
-              textAlign: 'center',
-              background: 'rgba(232,74,95,0.08)',
-              padding: '12px',
-              borderRadius: '8px'
-            }}>
-              {error}
-            </div>
-          )}
-
-          <button
-            onClick={handleVerify}
-            disabled={loading}
-            className="btn-primary"
-            style={{ width: '100%', marginTop: '8px' }}
-          >
-            {loading ? '验证中...' : '开始选择'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // 渲染选择页面
-  const renderSelection = () => (
-    <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
-      {/* Header */}
-      <header style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        height: '56px',
-        background: 'var(--cream)',
-        borderBottom: '1px solid var(--border)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 1.5rem'
-      }}>
-        <h1 style={{ 
-          fontFamily: "'Noto Serif SC', serif", 
-          fontSize: '1.1rem',
-          fontWeight: 700
-        }}>
-          🏪 门店志愿分配
-        </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span className={`badge ${student.type === '服务' ? 'badge-service' : 'badge-non-service'}`}>
-            {student.type}类
-          </span>
-          <span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>
-            {student.name}
-          </span>
-          <button
-            onClick={handleBackToLogin}
-            style={{
-              background: 'none',
-              border: '1px solid var(--border)',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              fontSize: '0.8rem',
-              color: 'var(--ink-light)',
-              cursor: 'pointer'
-            }}
-          >
-            切换账号
-          </button>
-        </div>
-      </header>
-
-      {/* 内容区 */}
-      <main style={{ 
-        maxWidth: '1000px', 
-        margin: '0 auto', 
-        padding: '2rem 1.5rem' 
-      }}>
-        {/* 已选志愿 */}
-        <div className="card fade-in" style={{ marginBottom: '24px' }}>
-          <h2 style={{ 
-            fontFamily: "'Noto Serif SC', serif",
-            fontSize: '1.1rem',
-            fontWeight: 700,
-            marginBottom: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            📋 我的志愿
-            <span style={{ 
-              fontSize: '0.8rem', 
-              color: 'var(--ink-faint)',
-              fontWeight: 400 
-            }}>
-              （点击门店卡片选择，最多3个）
-            </span>
-          </h2>
-          
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '12px'
-          }}>
-            {choices.map((choice, index) => (
-              <div
-                key={index}
-                className={`choice-card ${choice ? 'selected' : ''}`}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div className={`choice-number choice-${index + 1}`}>
-                      {index + 1}
-                    </div>
-                    <div>
-                      <div style={{ 
-                        fontSize: '0.9rem', 
-                        fontWeight: 600,
-                        color: choice ? 'var(--ink)' : 'var(--ink-faint)'
-                      }}>
-                        {choice || '未选择'}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--ink-faint)' }}>
-                        第{index + 1}志愿
-                      </div>
-                    </div>
-                  </div>
-                  {choice && (
-                    <button
-                      onClick={() => handleRemoveChoice(index)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--ink-faint)',
-                        cursor: 'pointer',
-                        fontSize: '1.2rem',
-                        padding: '4px'
-                      }}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 门店列表 */}
-        <div className="card fade-in">
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            marginBottom: '20px',
-            flexWrap: 'wrap',
-            gap: '12px'
-          }}>
-            <h2 style={{ 
-              fontFamily: "'Noto Serif SC', serif",
-              fontSize: '1.1rem',
-              fontWeight: 700
-            }}>
-              🏪 可选门店
-            </h2>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="app-input"
-              placeholder="🔍 搜索门店..."
-              style={{ maxWidth: '240px' }}
-            />
-          </div>
-
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: '12px'
-          }}>
-            {filteredStores.map((store) => {
-              const remaining = store.remaining;
-              const progressPercent = (store.enrolled / store.capacity) * 100;
-              const progressClass = remaining === 0 ? 'high' : remaining <= 1 ? 'medium' : 'low';
-              
-              return (
-                <div
-                  key={store.name}
-                  onClick={() => store.available && handleSelectStore(store.name)}
-                  className={`store-card ${choices.includes(store.name) ? 'selected' : ''} ${!store.available ? 'full' : ''}`}
-                >
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'flex-start', 
-                    justifyContent: 'space-between',
-                    marginBottom: '12px'
-                  }}>
-                    <h3 style={{ 
-                      fontSize: '0.9rem', 
-                      fontWeight: 600,
-                      color: 'var(--ink)',
-                      lineHeight: 1.4,
-                      flex: 1
-                    }}>
-                      {store.name}
-                    </h3>
-                    <span className={`badge ${store.available ? 'badge-available' : 'badge-full'}`}>
-                      {store.available ? '可选' : '已满'}
-                    </span>
-                  </div>
-                  
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    gap: '8px',
-                    fontSize: '0.85rem',
-                    color: 'var(--ink-light)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>👥 容纳</span>
-                      <span style={{ fontWeight: 600 }}>{store.capacity}人</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>📊 已选</span>
-                      <span style={{ fontWeight: 600 }}>{store.enrolled}人</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>✨ 剩余</span>
-                      <span style={{ 
-                        fontWeight: 700,
-                        color: remaining > 0 ? '#2d6a4f' : 'var(--red)'
-                      }}>
-                        {remaining}人
-                      </span>
-                    </div>
-                    <div className="progress-bar" style={{ marginTop: '4px' }}>
-                      <div 
-                        className={`progress-fill ${progressClass}`}
-                        style={{ width: `${progressPercent}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {choices.includes(store.name) && (
-                    <div style={{ 
-                      marginTop: '12px',
-                      textAlign: 'center'
-                    }}>
-                      <span className="badge badge-service">
-                        已选为第{choices.indexOf(store.name) + 1}志愿
-                      </span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 提交按钮 */}
-        <div style={{ 
-          marginTop: '24px', 
-          textAlign: 'center',
-          paddingBottom: '40px'
-        }}>
-          {error && (
-            <div style={{ 
-              color: 'var(--red)', 
-              fontSize: '0.85rem', 
-              marginBottom: '16px',
-              background: 'rgba(232,74,95,0.08)',
-              padding: '12px 20px',
-              borderRadius: '8px',
-              display: 'inline-block'
-            }}>
-              {error}
-            </div>
-          )}
-          <button
-            onClick={handleSubmit}
-            disabled={loading || choices.every(c => c === null)}
-            className="btn-primary"
-            style={{ 
-              padding: '14px 48px',
-              fontSize: '1rem'
-            }}
-          >
-            {loading ? '提交中...' : '提交志愿'}
-          </button>
-        </div>
-      </main>
-    </div>
-  );
-
   // 返回登录
   const handleBackToLogin = () => {
     setStep(1);
@@ -514,56 +213,706 @@ function App() {
     setChoices([null, null, null]);
     setError('');
     setResult(null);
+    setDraftSaved(false);
+  };
+
+  // 过滤门店
+  const filteredStores = stores.filter(store => {
+    const matchesSearch = store.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = storeTypeFilter === 'all' || storeTypeFilter === store.type;
+    return matchesSearch && matchesType;
+  });
+
+  // 格式化时间
+  const formatTime = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN', { 
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
+  };
+
+  // 渲染首页
+  const renderHome = () => (
+    <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
+      <header style={{
+        height: '56px',
+        background: 'var(--cream)',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0 1.5rem'
+      }}>
+        <h1 style={{ 
+          fontFamily: "'Noto Serif SC', serif", 
+          fontSize: '1.1rem',
+          fontWeight: 700
+        }}>
+          🏪 门店实训志愿分配系统
+        </h1>
+      </header>
+
+      <main style={{ 
+        maxWidth: '800px', 
+        margin: '0 auto', 
+        padding: '2rem 1.5rem' 
+      }}>
+        <div className="card fade-in" style={{ marginBottom: '24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📋</div>
+            <h2 style={{ 
+              fontFamily: "'Noto Serif SC', serif",
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              marginBottom: '8px'
+            }}>
+              2026年中国区校招生门店实训志愿填报
+            </h2>
+            <p style={{ color: 'var(--ink-light)', fontSize: '0.9rem' }}>
+              请仔细阅读以下说明，选择你的门店志愿
+            </p>
+          </div>
+
+          <div style={{ 
+            background: 'rgba(43,127,216,0.06)',
+            borderRadius: '12px',
+            padding: '20px',
+            marginBottom: '20px'
+          }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '12px' }}>
+              ⏰ 填报时间
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--ink-light)', marginBottom: '8px' }}>
+              开始时间：2026年7月27日 09:00
+            </p>
+            <p style={{ fontSize: '0.9rem', color: 'var(--ink-light)' }}>
+              截止时间：2026年7月29日 19:00
+            </p>
+            {config && !config.isWithinTime && (
+              <p style={{ 
+                fontSize: '0.85rem', 
+                color: 'var(--red)',
+                marginTop: '12px',
+                fontWeight: 600
+              }}>
+                ⚠️ 当前不在填报时间内，门店暂不可选
+              </p>
+            )}
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '12px' }}>
+              📝 填报规则
+            </h3>
+            <ul style={{ 
+              fontSize: '0.9rem', 
+              color: 'var(--ink-light)',
+              paddingLeft: '20px',
+              lineHeight: 1.8
+            }}>
+              <li>每人可选择 <strong>3个志愿</strong>，按优先级排序</li>
+              <li>系统按志愿顺序分配，第一个有名额的志愿生效</li>
+              <li>服务类学员只能选择服务类门店</li>
+              <li>非服务类学员只能选择非服务类门店</li>
+              <li>提交后 <strong>不可修改</strong>，请谨慎选择</li>
+              <li>可先暂存志愿，确认后再提交</li>
+            </ul>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '12px' }}>
+              🏪 门店概况
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ 
+                background: 'rgba(43,127,216,0.06)',
+                borderRadius: '8px',
+                padding: '16px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--blue)' }}>9</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>服务类门店</div>
+              </div>
+              <div style={{ 
+                background: 'rgba(232,74,95,0.06)',
+                borderRadius: '8px',
+                padding: '16px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--red)' }}>42</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>非服务类门店</div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setStep(1)}
+            className="btn-primary"
+            style={{ width: '100%', padding: '14px', fontSize: '1rem' }}
+          >
+            开始填报
+          </button>
+        </div>
+      </main>
+    </div>
+  );
+
+  // 渲染登录页面
+  const renderLogin = () => (
+    <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
+      <header style={{
+        height: '56px',
+        background: 'var(--cream)',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 1.5rem'
+      }}>
+        <button
+          onClick={() => setStep(0)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--blue)',
+            cursor: 'pointer',
+            fontSize: '0.9rem'
+          }}
+        >
+          ← 返回首页
+        </button>
+        <h1 style={{ 
+          fontFamily: "'Noto Serif SC', serif", 
+          fontSize: '1.1rem',
+          fontWeight: 700
+        }}>
+          身份验证
+        </h1>
+        <div style={{ width: '60px' }}></div>
+      </header>
+
+      <div style={{ 
+        maxWidth: '400px', 
+        margin: '0 auto', 
+        padding: '2rem 1.5rem' 
+      }}>
+        <div className="card fade-in">
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>👤</div>
+            <h2 style={{ 
+              fontFamily: "'Noto Serif SC', serif",
+              fontSize: '1.3rem',
+              fontWeight: 700,
+              marginBottom: '8px'
+            }}>
+              请输入你的信息
+            </h2>
+            <p style={{ color: 'var(--ink-light)', fontSize: '0.85rem' }}>
+              工号和姓名用于验证身份
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ 
+                display: 'block', 
+                fontSize: '0.85rem', 
+                fontWeight: 600, 
+                color: 'var(--ink)',
+                marginBottom: '8px' 
+              }}>
+                工号
+              </label>
+              <input
+                type="text"
+                value={studentId}
+                onChange={(e) => setStudentId(e.target.value)}
+                className="app-input"
+                placeholder="请输入工号"
+              />
+            </div>
+
+            <div>
+              <label style={{ 
+                display: 'block', 
+                fontSize: '0.85rem', 
+                fontWeight: 600, 
+                color: 'var(--ink)',
+                marginBottom: '8px' 
+              }}>
+                姓名
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="app-input"
+                placeholder="请输入姓名"
+              />
+            </div>
+
+            {error && (
+              <div style={{ 
+                color: 'var(--red)', 
+                fontSize: '0.85rem', 
+                textAlign: 'center',
+                background: 'rgba(232,74,95,0.08)',
+                padding: '12px',
+                borderRadius: '8px'
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              onClick={handleVerify}
+              disabled={loading}
+              className="btn-primary"
+              style={{ width: '100%', marginTop: '8px' }}
+            >
+              {loading ? '验证中...' : '验证身份'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // 渲染选择页面
+  const renderSelection = () => {
+    const isWithinTime = config && config.isWithinTime;
+    const relevantStores = filteredStores.filter(s => s.type === student.type);
+    
+    return (
+      <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
+        {/* Header */}
+        <header style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          height: '56px',
+          background: 'var(--cream)',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 1.5rem'
+        }}>
+          <h1 style={{ 
+            fontFamily: "'Noto Serif SC', serif", 
+            fontSize: '1.1rem',
+            fontWeight: 700
+          }}>
+            🏪 选择门店志愿
+          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span className={`badge ${student.type === '服务' ? 'badge-service' : 'badge-non-service'}`}>
+              {student.type}类
+            </span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>
+              {student.name}
+            </span>
+            <button
+              onClick={handleBackToLogin}
+              style={{
+                background: 'none',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '0.8rem',
+                color: 'var(--ink-light)',
+                cursor: 'pointer'
+              }}
+            >
+              切换账号
+            </button>
+          </div>
+        </header>
+
+        {/* 时间提示 */}
+        {config && !isWithinTime && (
+          <div style={{ 
+            background: 'var(--yellow)', 
+            padding: '12px 1.5rem',
+            textAlign: 'center',
+            fontSize: '0.9rem',
+            fontWeight: 600
+          }}>
+            ⏰ 当前不在填报时间内（{formatTime(config.startTime)} - {formatTime(config.endTime)}），门店暂不可选
+          </div>
+        )}
+
+        {/* 内容区 */}
+        <main style={{ 
+          maxWidth: '1000px', 
+          margin: '0 auto', 
+          padding: '2rem 1.5rem' 
+        }}>
+          {/* 已选志愿 */}
+          <div className="card fade-in" style={{ marginBottom: '24px' }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              marginBottom: '16px'
+            }}>
+              <h2 style={{ 
+                fontFamily: "'Noto Serif SC', serif",
+                fontSize: '1.1rem',
+                fontWeight: 700
+              }}>
+                📋 我的志愿
+              </h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {draftSaved && (
+                  <span style={{ 
+                    fontSize: '0.8rem', 
+                    color: '#2d6a4f',
+                    background: 'rgba(45,106,79,0.1)',
+                    padding: '4px 12px',
+                    borderRadius: '6px'
+                  }}>
+                    ✓ 已暂存
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '12px',
+              marginBottom: '16px'
+            }}>
+              {choices.map((choice, index) => (
+                <div
+                  key={index}
+                  className={`choice-card ${choice ? 'selected' : ''}`}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div className={`choice-number choice-${index + 1}`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <div style={{ 
+                          fontSize: '0.85rem', 
+                          fontWeight: 600,
+                          color: choice ? 'var(--ink)' : 'var(--ink-faint)',
+                          maxWidth: '180px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {choice || '未选择'}
+                        </div>
+                      </div>
+                    </div>
+                    {choice && (
+                      <button
+                        onClick={() => handleRemoveChoice(index)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--ink-faint)',
+                          cursor: 'pointer',
+                          fontSize: '1.2rem',
+                          padding: '4px'
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={handleSaveDraft}
+                disabled={loading || choices.every(c => c === null)}
+                className="btn-secondary"
+                style={{ flex: 1 }}
+              >
+                {loading ? '保存中...' : '暂存志愿'}
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={loading || choices.every(c => c === null) || !isWithinTime}
+                className="btn-primary"
+                style={{ flex: 1 }}
+              >
+                {loading ? '提交中...' : '确认提交'}
+              </button>
+            </div>
+          </div>
+
+          {/* 门店列表 */}
+          <div className="card fade-in">
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              marginBottom: '20px',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
+              <h2 style={{ 
+                fontFamily: "'Noto Serif SC', serif",
+                fontSize: '1.1rem',
+                fontWeight: 700
+              }}>
+                🏪 可选门店（共{relevantStores.length}家）
+              </h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="app-input"
+                  placeholder="🔍 搜索门店..."
+                  style={{ width: '200px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table className="app-table">
+                <thead>
+                  <tr>
+                    <th>门店名称</th>
+                    <th style={{ textAlign: 'center' }}>容量</th>
+                    <th style={{ textAlign: 'center' }}>已选</th>
+                    <th style={{ textAlign: 'center' }}>剩余</th>
+                    <th style={{ textAlign: 'center' }}>状态</th>
+                    <th style={{ textAlign: 'center' }}>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {relevantStores.map((store) => {
+                    const isFull = !store.available;
+                    const isSelected = choices.includes(store.name);
+                    const isDisabled = isFull || !isWithinTime;
+                    
+                    return (
+                      <tr 
+                        key={store.name}
+                        style={{ 
+                          opacity: isDisabled ? 0.5 : 1,
+                          background: isSelected ? 'rgba(43,127,216,0.06)' : undefined
+                        }}
+                      >
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ 
+                              fontSize: '0.9rem',
+                              color: isDisabled ? 'var(--ink-faint)' : 'var(--ink)'
+                            }}>
+                              {store.name}
+                            </span>
+                            <button
+                              onClick={() => setSelectedStore(store)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--blue)',
+                                cursor: 'pointer',
+                                fontSize: '0.75rem',
+                                padding: '2px 6px'
+                              }}
+                            >
+                              📍
+                            </button>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>{store.capacity}</td>
+                        <td style={{ textAlign: 'center', fontWeight: 600 }}>{store.enrolled}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{ 
+                            fontWeight: 700,
+                            color: store.remaining > 0 ? '#2d6a4f' : 'var(--red)'
+                          }}>
+                            {store.remaining}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className={`badge ${isFull ? 'badge-full' : 'badge-available'}`}>
+                            {isFull ? '已满' : '可选'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            onClick={() => !isDisabled && handleSelectStore(store.name)}
+                            disabled={isDisabled}
+                            style={{
+                              background: isSelected ? 'var(--blue)' : isDisabled ? 'var(--border)' : 'transparent',
+                              color: isSelected ? 'white' : isDisabled ? 'var(--ink-faint)' : 'var(--blue)',
+                              border: isSelected ? 'none' : `1px solid ${isDisabled ? 'var(--border)' : 'var(--blue)'}`,
+                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              fontSize: '0.8rem',
+                              cursor: isDisabled ? 'not-allowed' : 'pointer',
+                              fontWeight: 600
+                            }}
+                          >
+                            {isSelected ? '已选' : isDisabled ? '不可选' : '选择'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </main>
+
+        {/* 门店详情弹窗 */}
+        {selectedStore && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(0,0,0,.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div style={{
+              background: 'var(--cream)',
+              borderRadius: '16px',
+              padding: '2rem',
+              maxWidth: '500px',
+              width: '90%'
+            }}>
+              <h3 style={{ 
+                fontFamily: "'Noto Serif SC', serif",
+                fontSize: '1.1rem',
+                fontWeight: 700,
+                marginBottom: '16px'
+              }}>
+                📍 门店详情
+              </h3>
+              <p style={{ 
+                fontSize: '1rem', 
+                fontWeight: 600,
+                marginBottom: '16px'
+              }}>
+                {selectedStore.name}
+              </p>
+              
+              <div style={{ 
+                background: 'rgba(43,127,216,0.06)',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '16px'
+              }}>
+                <div style={{ marginBottom: '12px' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>📍 地址：</span>
+                  <span style={{ fontSize: '0.9rem' }}>{selectedStore.address || '暂无'}</span>
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>🚗 距小米科技园：</span>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{selectedStore.distance || '暂无'} 公里</span>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>👥 容纳人数：</span>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{selectedStore.capacity} 人</span>
+                </div>
+              </div>
+
+              {selectedStore.address && (
+                <a
+                  href={`https://uri.amap.com/marker?position=&name=${encodeURIComponent(selectedStore.name)}&address=${encodeURIComponent(selectedStore.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary"
+                  style={{ 
+                    display: 'block',
+                    textAlign: 'center',
+                    textDecoration: 'none',
+                    marginBottom: '12px'
+                  }}
+                >
+                  🗺️ 打开高德地图导航
+                </a>
+              )}
+
+              <button
+                onClick={() => setSelectedStore(null)}
+                className="btn-secondary"
+                style={{ width: '100%' }}
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // 渲染结果页面
   const renderResult = () => (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--cream)' }}>
-      <div className="card max-w-md w-full text-center fade-in">
-        <div style={{ fontSize: '4rem', marginBottom: '24px' }}>🎉</div>
-        <h1 style={{ 
-          fontFamily: "'Noto Serif SC', serif",
-          fontSize: '1.8rem',
-          fontWeight: 700,
-          marginBottom: '16px'
-        }}>
-          分配成功！
-        </h1>
-        <div style={{ 
-          background: 'var(--blue)',
-          color: 'white',
-          padding: '24px',
-          borderRadius: '12px',
-          marginBottom: '24px'
-        }}>
-          <p style={{ fontSize: '1rem', marginBottom: '8px', opacity: 0.9 }}>你被分配到</p>
-          <p style={{ 
+    <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
+      <div style={{ 
+        maxWidth: '500px', 
+        margin: '0 auto', 
+        padding: '2rem 1.5rem',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center'
+      }}>
+        <div className="card fade-in" style={{ width: '100%', textAlign: 'center' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '24px' }}>🎉</div>
+          <h1 style={{ 
             fontFamily: "'Noto Serif SC', serif",
-            fontSize: '1.4rem',
-            fontWeight: 700
+            fontSize: '1.8rem',
+            fontWeight: 700,
+            marginBottom: '16px'
           }}>
-            {result.data.store}
+            提交成功！
+          </h1>
+          <div style={{ 
+            background: 'var(--blue)',
+            color: 'white',
+            padding: '24px',
+            borderRadius: '12px',
+            marginBottom: '24px'
+          }}>
+            <p style={{ fontSize: '1rem', marginBottom: '8px', opacity: 0.9 }}>你被分配到</p>
+            <p style={{ 
+              fontFamily: "'Noto Serif SC', serif",
+              fontSize: '1.3rem',
+              fontWeight: 700
+            }}>
+              {result.data.store}
+            </p>
+            <p style={{ fontSize: '0.9rem', marginTop: '8px', opacity: 0.8 }}>
+              （第{result.data.choice}志愿）
+            </p>
+          </div>
+          <p style={{ color: 'var(--ink-light)', marginBottom: '24px', fontSize: '0.9rem' }}>
+            {result.message}
           </p>
-          <p style={{ fontSize: '0.9rem', marginTop: '8px', opacity: 0.8 }}>
-            （第{result.data.choice}志愿）
-          </p>
-        </div>
-        <p style={{ color: 'var(--ink-light)', marginBottom: '24px', fontSize: '0.9rem' }}>
-          {result.message}
-        </p>
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-          <button
-            onClick={handleBackToLogin}
-            className="btn-secondary"
-          >
-            返回登录
-          </button>
-          <button
-            onClick={() => window.location.reload()}
-            className="btn-primary"
-          >
-            完成
-          </button>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <button
+              onClick={handleBackToLogin}
+              className="btn-secondary"
+            >
+              返回登录
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="btn-primary"
+            >
+              完成
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -571,12 +920,10 @@ function App() {
 
   // 渲染已分配学员查看页面
   const renderAllocatedView = () => {
-    // 过滤出学员类型的门店
     const relevantStores = stores.filter(s => s.type === student.type);
     
     return (
       <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
-        {/* Header */}
         <header style={{
           position: 'sticky',
           top: 0,
@@ -612,13 +959,11 @@ function App() {
           </button>
         </header>
 
-        {/* 内容区 */}
         <main style={{ 
           maxWidth: '1000px', 
           margin: '0 auto', 
           padding: '2rem 1.5rem' 
         }}>
-          {/* 分配结果卡片 */}
           <div className="card fade-in" style={{ marginBottom: '24px' }}>
             <div style={{ 
               display: 'flex', 
@@ -687,25 +1032,14 @@ function App() {
             </div>
           </div>
 
-          {/* 门店录取情况 */}
           <div className="card fade-in">
             <h2 style={{ 
               fontFamily: "'Noto Serif SC', serif",
               fontSize: '1.1rem',
               fontWeight: 700,
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
+              marginBottom: '20px'
             }}>
-              🏪 {student.type}类门店录取情况
-              <span style={{ 
-                fontSize: '0.8rem', 
-                color: 'var(--ink-faint)',
-                fontWeight: 400 
-              }}>
-                （共{relevantStores.length}家）
-              </span>
+              🏪 {student.type}类门店录取情况（共{relevantStores.length}家）
             </h2>
 
             <div style={{ overflowX: 'auto' }}>
@@ -776,6 +1110,7 @@ function App() {
 
   return (
     <div>
+      {step === 0 && renderHome()}
       {step === 1 && renderLogin()}
       {step === 2 && renderSelection()}
       {step === 3 && renderResult()}

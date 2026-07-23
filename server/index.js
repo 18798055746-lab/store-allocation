@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import xlsx from 'xlsx';
+import multer from 'multer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,17 +13,32 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 文件上传配置
+const upload = multer({ dest: '/tmp/uploads/' });
+
 // 数据文件路径 - 支持 Render 持久化磁盘
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const STORES_FILE = path.join(DATA_DIR, 'stores.json');
 const STUDENTS_FILE = path.join(DATA_DIR, 'students.json');
 const ALLOCATIONS_FILE = path.join(DATA_DIR, 'allocations.json');
+const DRAFTS_FILE = path.join(DATA_DIR, 'drafts.json');
+
+// 志愿填报时间配置
+const ALLOCATION_START = new Date('2026-07-27T09:00:00+08:00');
+const ALLOCATION_END = new Date('2026-07-29T19:00:00+08:00');
 
 // 内存缓存
 let storesData = { service: [], nonService: [] };
 let studentsData = {};
 let allocationsData = { allocations: [], timestamp: null };
+let draftsData = {};
 let allocationLock = new Map();
+
+// 检查是否在填报时间内
+function isWithinAllocationTime() {
+  const now = new Date();
+  return now >= ALLOCATION_START && now <= ALLOCATION_END;
+}
 
 // 初始化数据
 function initData() {
@@ -48,10 +64,14 @@ function initData() {
     if (!fs.existsSync(ALLOCATIONS_FILE)) {
       fs.writeFileSync(ALLOCATIONS_FILE, JSON.stringify({ allocations: [], timestamp: null }, null, 2));
     }
+    if (!fs.existsSync(DRAFTS_FILE)) {
+      fs.writeFileSync(DRAFTS_FILE, JSON.stringify({}, null, 2));
+    }
     
     storesData = JSON.parse(fs.readFileSync(STORES_FILE, 'utf-8'));
     studentsData = JSON.parse(fs.readFileSync(STUDENTS_FILE, 'utf-8'));
     allocationsData = JSON.parse(fs.readFileSync(ALLOCATIONS_FILE, 'utf-8'));
+    draftsData = JSON.parse(fs.readFileSync(DRAFTS_FILE, 'utf-8'));
     
     console.log('数据初始化完成:', {
       serviceStores: storesData.service.length,
@@ -64,13 +84,29 @@ function initData() {
   }
 }
 
-// 保存分配结果
+// 保存数据
 function saveAllocations() {
   try {
     allocationsData.timestamp = new Date().toISOString();
     fs.writeFileSync(ALLOCATIONS_FILE, JSON.stringify(allocationsData, null, 2));
   } catch (error) {
     console.error('保存分配结果失败:', error.message);
+  }
+}
+
+function saveDrafts() {
+  try {
+    fs.writeFileSync(DRAFTS_FILE, JSON.stringify(draftsData, null, 2));
+  } catch (error) {
+    console.error('保存草稿失败:', error.message);
+  }
+}
+
+function saveStores() {
+  try {
+    fs.writeFileSync(STORES_FILE, JSON.stringify(storesData, null, 2));
+  } catch (error) {
+    console.error('保存门店数据失败:', error.message);
   }
 }
 
@@ -85,6 +121,19 @@ function getStoreEnrollments() {
   });
   return enrollments;
 }
+
+// API: 获取填报时间配置
+app.get('/api/config', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      startTime: ALLOCATION_START.toISOString(),
+      endTime: ALLOCATION_END.toISOString(),
+      isWithinTime: isWithinAllocationTime(),
+      currentTime: new Date().toISOString()
+    }
+  });
+});
 
 // API: 获取门店列表（带实时余量）
 app.get('/api/stores', (req, res) => {
@@ -123,12 +172,12 @@ app.post('/api/verify', (req, res) => {
     return res.json({ success: false, message: '姓名与工号不匹配' });
   }
   
-  // 检查是否已分配
+  // 检查是否已提交（已分配）
   const existing = allocationsData.allocations.find(a => a.studentId === studentId);
   if (existing) {
     return res.json({ 
       success: false, 
-      message: `你已被分配到：${existing.store}`,
+      message: `你已提交志愿并分配到：${existing.store}`,
       alreadyAllocated: true,
       store: existing.store,
       choice: existing.choice,
@@ -136,19 +185,74 @@ app.post('/api/verify', (req, res) => {
     });
   }
   
+  // 检查是否有暂存的草稿
+  const draft = draftsData[studentId] || null;
+  
   res.json({
     success: true,
     data: {
       id: student.id,
       name: student.name,
-      type: student.type
+      type: student.type,
+      draft: draft
     }
+  });
+});
+
+// API: 保存草稿（暂存志愿）
+app.post('/api/draft', (req, res) => {
+  const { studentId, name, choices } = req.body;
+  
+  // 验证学员
+  const student = studentsData[studentId];
+  if (!student || student.name !== name) {
+    return res.json({ success: false, message: '身份验证失败' });
+  }
+  
+  // 检查是否已提交
+  const existing = allocationsData.allocations.find(a => a.studentId === studentId);
+  if (existing) {
+    return res.json({ success: false, message: '你已提交志愿，无法修改' });
+  }
+  
+  // 保存草稿
+  draftsData[studentId] = {
+    choices: choices.filter(c => c !== null),
+    savedAt: new Date().toISOString()
+  };
+  saveDrafts();
+  
+  res.json({
+    success: true,
+    message: '志愿已暂存',
+    data: draftsData[studentId]
+  });
+});
+
+// API: 获取草稿
+app.get('/api/draft/:studentId', (req, res) => {
+  const { studentId } = req.params;
+  const draft = draftsData[studentId] || null;
+  
+  res.json({
+    success: true,
+    data: draft
   });
 });
 
 // API: 提交志愿（带并发控制）
 app.post('/api/allocate', (req, res) => {
   const { studentId, name, choices } = req.body;
+  
+  // 检查是否在填报时间内
+  if (!isWithinAllocationTime()) {
+    return res.json({ 
+      success: false, 
+      message: '当前不在志愿填报时间内',
+      startTime: ALLOCATION_START.toISOString(),
+      endTime: ALLOCATION_END.toISOString()
+    });
+  }
   
   // 验证学员
   const student = studentsData[studentId];
@@ -169,7 +273,7 @@ app.post('/api/allocate', (req, res) => {
     if (existing) {
       return res.json({ 
         success: false, 
-        message: `你已被分配到：${existing.store}` 
+        message: `你已提交志愿并分配到：${existing.store}` 
       });
     }
     
@@ -215,11 +319,16 @@ app.post('/api/allocate', (req, res) => {
       studentType: student.type,
       store: allocatedStore.name,
       choice: allocatedChoice,
+      choices: choices,
       timestamp: new Date().toISOString()
     };
     
     allocationsData.allocations.push(allocation);
     saveAllocations();
+    
+    // 删除草稿
+    delete draftsData[studentId];
+    saveDrafts();
     
     res.json({
       success: true,
@@ -421,17 +530,115 @@ app.put('/api/admin/store-capacity', (req, res) => {
   
   // 更新容量
   store.capacity = capacity;
+  saveStores();
   
-  // 保存到文件
+  res.json({ 
+    success: true, 
+    message: `${storeName} 容量已更新为 ${capacity} 人`
+  });
+});
+
+// API: 管理员导入门店信息（Excel）
+app.post('/api/admin/import-stores', upload.single('file'), (req, res) => {
   try {
-    fs.writeFileSync(STORES_FILE, JSON.stringify(storesData, null, 2));
-    res.json({ 
-      success: true, 
-      message: `${storeName} 容量已更新为 ${capacity} 人`
+    if (!req.file) {
+      return res.json({ success: false, message: '请上传文件' });
+    }
+    
+    const workbook = xlsx.readFile(req.file.path);
+    const sheetName = workbook.SheetNames[0];
+    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    
+    const service = [];
+    const nonService = [];
+    
+    data.forEach(row => {
+      const name = row['门店名称'] || row['门店列表'] || row['name'];
+      const capacity = parseInt(row['可容纳人数'] || row['门店可容纳人数'] || row['capacity']) || 2;
+      const type = row['适配范围'] || row['类型'] || row['type'] || '非服务';
+      const address = row['地址'] || row['地理位置'] || row['address'] || '';
+      const distance = row['距离科技园'] || row['小米科技园距离门店（公里）'] || row['distance'] || '';
+      
+      if (name) {
+        const store = { name, capacity, type: type.includes('服务') && !type.includes('非服务') ? '服务' : '非服务', address, distance };
+        if (store.type === '服务') {
+          service.push(store);
+        } else {
+          nonService.push(store);
+        }
+      }
     });
+    
+    if (service.length === 0 && nonService.length === 0) {
+      return res.json({ success: false, message: '未找到有效数据，请检查Excel格式' });
+    }
+    
+    storesData = { service, nonService };
+    saveStores();
+    
+    // 删除临时文件
+    fs.unlinkSync(req.file.path);
+    
+    res.json({
+      success: true,
+      message: `成功导入 ${service.length} 家服务类门店，${nonService.length} 家非服务类门店`,
+      data: { service: service.length, nonService: nonService.length }
+    });
+    
   } catch (error) {
-    console.error('保存门店数据失败:', error.message);
-    res.json({ success: false, message: '保存失败' });
+    console.error('导入失败:', error.message);
+    res.json({ success: false, message: '导入失败: ' + error.message });
+  }
+});
+
+// API: 管理员导入学员信息（Excel）
+app.post('/api/admin/import-students', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.json({ success: false, message: '请上传文件' });
+    }
+    
+    const workbook = xlsx.readFile(req.file.path);
+    const sheetName = workbook.SheetNames[0];
+    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    
+    const students = {};
+    let count = 0;
+    
+    data.forEach(row => {
+      const id = row['工号'] || row['id'];
+      const name = row['姓名'] || row['name'];
+      const type = row['类型'] || row['站店类型'] || row['type'] || '非服务';
+      
+      if (id && name) {
+        students[id] = {
+          id,
+          name,
+          type: type.includes('服务') && !type.includes('非服务') ? '服务' : '非服务'
+        };
+        count++;
+      }
+    });
+    
+    if (count === 0) {
+      return res.json({ success: false, message: '未找到有效数据，请检查Excel格式' });
+    }
+    
+    studentsData = students;
+    fs.writeFileSync(STUDENTS_FILE, JSON.stringify(studentsData, null, 2));
+    
+    // 删除临时文件
+    fs.unlinkSync(req.file.path);
+    
+    res.json({
+      success: true,
+      message: `成功导入 ${count} 名学员`,
+      data: { count }
+    });
+    
+  } catch (error) {
+    console.error('导入失败:', error.message);
+    res.json({ success: false, message: '导入失败: ' + error.message });
   }
 });
 

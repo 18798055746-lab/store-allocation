@@ -9,6 +9,8 @@ function Admin() {
   const [exporting, setExporting] = useState(false);
   const [editingStore, setEditingStore] = useState(null);
   const [newCapacity, setNewCapacity] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [showAllocationDetail, setShowAllocationDetail] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -58,6 +60,62 @@ function Admin() {
     }
   };
 
+  // 导入门店信息
+  const handleImportStores = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setImporting(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post('/api/admin/import-stores', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (response.data.success) {
+        alert(response.data.message);
+        fetchData();
+      } else {
+        alert(response.data.message);
+      }
+    } catch (err) {
+      alert('导入失败，请重试');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  // 导入学员信息
+  const handleImportStudents = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setImporting(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post('/api/admin/import-students', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (response.data.success) {
+        alert(response.data.message);
+        fetchData();
+      } else {
+        alert(response.data.message);
+      }
+    } catch (err) {
+      alert('导入失败，请重试');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
   // 开始编辑容量
   const handleEditCapacity = (store) => {
     setEditingStore(store);
@@ -85,7 +143,7 @@ function Admin() {
         alert(response.data.message);
         setEditingStore(null);
         setNewCapacity('');
-        fetchData(); // 刷新数据
+        fetchData();
       } else {
         alert(response.data.message);
       }
@@ -95,16 +153,34 @@ function Admin() {
   };
 
   // 计算统计数据
-  const stats = {
-    totalStores: stores.length,
-    totalCapacity: stores.reduce((sum, s) => sum + s.capacity, 0),
-    totalEnrolled: stores.reduce((sum, s) => sum + s.enrolled, 0),
-    serviceStores: stores.filter(s => s.type === '服务').length,
-    nonServiceStores: stores.filter(s => s.type === '非服务').length,
-  };
-
   const serviceStores = stores.filter(s => s.type === '服务');
   const nonServiceStores = stores.filter(s => s.type === '非服务');
+  
+  const stats = {
+    totalStores: stores.length,
+    serviceStores: serviceStores.length,
+    nonServiceStores: nonServiceStores.length,
+    serviceCapacity: serviceStores.reduce((sum, s) => sum + s.capacity, 0),
+    nonServiceCapacity: nonServiceStores.reduce((sum, s) => sum + s.capacity, 0),
+    serviceEnrolled: serviceStores.reduce((sum, s) => sum + s.enrolled, 0),
+    nonServiceEnrolled: nonServiceStores.reduce((sum, s) => sum + s.enrolled, 0),
+    totalAllocated: results.totalAllocated || 0
+  };
+
+  // 获取当前tab对应的门店
+  const getStoresByTab = () => {
+    switch(activeTab) {
+      case 'service': return serviceStores;
+      case 'non-service': return nonServiceStores;
+      default: return stores;
+    }
+  };
+
+  // 获取分配详情数据
+  const getAllocationDetails = (storeName) => {
+    if (!results.allocations || !results.allocations[storeName]) return [];
+    return results.allocations[storeName];
+  };
 
   if (loading) {
     return (
@@ -143,6 +219,42 @@ function Admin() {
           📊 管理员后台
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <label style={{
+            background: 'var(--blue)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '8px 16px',
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+            fontWeight: 600
+          }}>
+            {importing ? '导入中...' : '📥 导入门店'}
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportStores}
+              style={{ display: 'none' }}
+            />
+          </label>
+          <label style={{
+            background: '#2d6a4f',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            padding: '8px 16px',
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+            fontWeight: 600
+          }}>
+            {importing ? '导入中...' : '📥 导入学员'}
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleImportStudents}
+              style={{ display: 'none' }}
+            />
+          </label>
           <button
             onClick={fetchData}
             className="btn-secondary"
@@ -167,7 +279,7 @@ function Admin() {
           onClick={() => setActiveTab('overview')}
           className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
         >
-          门店概览
+          总览
         </button>
         <button
           onClick={() => setActiveTab('service')}
@@ -198,32 +310,66 @@ function Admin() {
         {/* 统计卡片 */}
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gridTemplateColumns: activeTab === 'overview' ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)',
           gap: '16px',
           marginBottom: '24px'
         }}>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <div className="stat-number" style={{ color: 'var(--blue)' }}>{stats.totalStores}</div>
-            <div className="stat-label">总门店数</div>
-          </div>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <div className="stat-number" style={{ color: '#2d6a4f' }}>{stats.totalCapacity}</div>
-            <div className="stat-label">总容量</div>
-          </div>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <div className="stat-number" style={{ color: 'var(--yellow)' }}>{stats.totalEnrolled}</div>
-            <div className="stat-label">已报名</div>
-          </div>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <div className="stat-number" style={{ color: 'var(--red)' }}>
-              {stats.totalCapacity - stats.totalEnrolled}
-            </div>
-            <div className="stat-label">剩余名额</div>
-          </div>
+          {activeTab === 'overview' ? (
+            <>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div className="stat-number" style={{ color: 'var(--blue)' }}>{stats.totalStores}</div>
+                <div className="stat-label">总门店数</div>
+              </div>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div className="stat-number" style={{ color: '#2d6a4f' }}>{stats.serviceCapacity + stats.nonServiceCapacity}</div>
+                <div className="stat-label">总容量</div>
+              </div>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div className="stat-number" style={{ color: 'var(--yellow)' }}>{stats.totalAllocated}</div>
+                <div className="stat-label">已分配</div>
+              </div>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div className="stat-number" style={{ color: 'var(--red)' }}>
+                  {stats.serviceCapacity + stats.nonServiceCapacity - stats.totalAllocated}
+                </div>
+                <div className="stat-label">剩余名额</div>
+              </div>
+            </>
+          ) : activeTab === 'service' ? (
+            <>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div className="stat-number" style={{ color: 'var(--blue)' }}>{stats.serviceStores}</div>
+                <div className="stat-label">服务类门店</div>
+              </div>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div className="stat-number" style={{ color: '#2d6a4f' }}>{stats.serviceCapacity}</div>
+                <div className="stat-label">总容量</div>
+              </div>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div className="stat-number" style={{ color: 'var(--red)' }}>{stats.serviceCapacity - stats.serviceEnrolled}</div>
+                <div className="stat-label">剩余名额</div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div className="stat-number" style={{ color: 'var(--blue)' }}>{stats.nonServiceStores}</div>
+                <div className="stat-label">非服务类门店</div>
+              </div>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div className="stat-number" style={{ color: '#2d6a4f' }}>{stats.nonServiceCapacity}</div>
+                <div className="stat-label">总容量</div>
+              </div>
+              <div className="card" style={{ textAlign: 'center' }}>
+                <div className="stat-number" style={{ color: 'var(--red)' }}>{stats.nonServiceCapacity - stats.nonServiceEnrolled}</div>
+                <div className="stat-label">剩余名额</div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* 门店概览 */}
-        {activeTab === 'overview' && (
+        {/* 门店列表 */}
+        {activeTab !== 'details' && (
           <div className="card fade-in">
             <h2 style={{ 
               fontFamily: "'Noto Serif SC', serif",
@@ -231,30 +377,40 @@ function Admin() {
               fontWeight: 700,
               marginBottom: '20px'
             }}>
-              门店报名情况
+              {activeTab === 'overview' ? '所有门店' : activeTab === 'service' ? '服务类门店' : '非服务类门店'}
+              <span style={{ 
+                fontSize: '0.85rem', 
+                color: 'var(--ink-faint)',
+                fontWeight: 400,
+                marginLeft: '8px'
+              }}>
+                共{getStoresByTab().length}家
+              </span>
             </h2>
             <div style={{ overflowX: 'auto' }}>
               <table className="app-table">
                 <thead>
                   <tr>
                     <th>门店名称</th>
-                    <th style={{ textAlign: 'center' }}>类型</th>
+                    {activeTab === 'overview' && <th style={{ textAlign: 'center' }}>类型</th>}
                     <th style={{ textAlign: 'center' }}>容量</th>
-                    <th style={{ textAlign: 'center' }}>已报名</th>
+                    <th style={{ textAlign: 'center' }}>已分配</th>
                     <th style={{ textAlign: 'center' }}>剩余</th>
                     <th style={{ textAlign: 'center' }}>状态</th>
                     <th style={{ textAlign: 'center' }}>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {stores.map((store) => (
+                  {getStoresByTab().map((store) => (
                     <tr key={store.name}>
                       <td>{store.name}</td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className={`badge ${store.type === '服务' ? 'badge-service' : 'badge-non-service'}`}>
-                          {store.type}
-                        </span>
-                      </td>
+                      {activeTab === 'overview' && (
+                        <td style={{ textAlign: 'center' }}>
+                          <span className={`badge ${store.type === '服务' ? 'badge-service' : 'badge-non-service'}`}>
+                            {store.type}
+                          </span>
+                        </td>
+                      )}
                       <td style={{ textAlign: 'center', fontWeight: 600 }}>
                         {editingStore?.name === store.name ? (
                           <input
@@ -269,231 +425,21 @@ function Admin() {
                           store.capacity
                         )}
                       </td>
-                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{store.enrolled}</td>
                       <td style={{ textAlign: 'center' }}>
-                        <span style={{ 
-                          fontWeight: 700,
-                          color: store.remaining > 0 ? '#2d6a4f' : 'var(--red)'
-                        }}>
-                          {store.remaining}
-                        </span>
+                        <button
+                          onClick={() => setShowAllocationDetail(store.name)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--blue)',
+                            cursor: store.enrolled > 0 ? 'pointer' : 'default',
+                            fontWeight: 600,
+                            textDecoration: store.enrolled > 0 ? 'underline' : 'none'
+                          }}
+                        >
+                          {store.enrolled}
+                        </button>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className={`badge ${store.available ? 'badge-available' : 'badge-full'}`}>
-                          {store.available ? '可选' : '已满'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        {editingStore?.name === store.name ? (
-                          <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                            <button
-                              onClick={handleSaveCapacity}
-                              style={{
-                                background: 'var(--blue)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
-                                fontSize: '0.75rem',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              保存
-                            </button>
-                            <button
-                              onClick={() => setEditingStore(null)}
-                              style={{
-                                background: 'var(--border)',
-                                color: 'var(--ink-light)',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
-                                fontSize: '0.75rem',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              取消
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleEditCapacity(store)}
-                            style={{
-                              background: 'none',
-                              color: 'var(--blue)',
-                              border: '1px solid var(--blue)',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            编辑
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* 服务类门店 */}
-        {activeTab === 'service' && (
-          <div className="card fade-in">
-            <h2 style={{ 
-              fontFamily: "'Noto Serif SC', serif",
-              fontSize: '1.1rem',
-              fontWeight: 700,
-              marginBottom: '20px'
-            }}>
-              服务类门店（共{serviceStores.length}家）
-            </h2>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="app-table">
-                <thead>
-                  <tr>
-                    <th>门店名称</th>
-                    <th style={{ textAlign: 'center' }}>容量</th>
-                    <th style={{ textAlign: 'center' }}>已报名</th>
-                    <th style={{ textAlign: 'center' }}>剩余</th>
-                    <th style={{ textAlign: 'center' }}>状态</th>
-                    <th style={{ textAlign: 'center' }}>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {serviceStores.map((store) => (
-                    <tr key={store.name}>
-                      <td>{store.name}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 600 }}>
-                        {editingStore?.name === store.name ? (
-                          <input
-                            type="number"
-                            value={newCapacity}
-                            onChange={(e) => setNewCapacity(e.target.value)}
-                            className="app-input"
-                            style={{ width: '60px', textAlign: 'center', padding: '4px 8px' }}
-                            min="1"
-                          />
-                        ) : (
-                          store.capacity
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{store.enrolled}</td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span style={{ 
-                          fontWeight: 700,
-                          color: store.remaining > 0 ? '#2d6a4f' : 'var(--red)'
-                        }}>
-                          {store.remaining}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className={`badge ${store.available ? 'badge-available' : 'badge-full'}`}>
-                          {store.available ? '可选' : '已满'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        {editingStore?.name === store.name ? (
-                          <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                            <button
-                              onClick={handleSaveCapacity}
-                              style={{
-                                background: 'var(--blue)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
-                                fontSize: '0.75rem',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              保存
-                            </button>
-                            <button
-                              onClick={() => setEditingStore(null)}
-                              style={{
-                                background: 'var(--border)',
-                                color: 'var(--ink-light)',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
-                                fontSize: '0.75rem',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              取消
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleEditCapacity(store)}
-                            style={{
-                              background: 'none',
-                              color: 'var(--blue)',
-                              border: '1px solid var(--blue)',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            编辑
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* 非服务类门店 */}
-        {activeTab === 'non-service' && (
-          <div className="card fade-in">
-            <h2 style={{ 
-              fontFamily: "'Noto Serif SC', serif",
-              fontSize: '1.1rem',
-              fontWeight: 700,
-              marginBottom: '20px'
-            }}>
-              非服务类门店（共{nonServiceStores.length}家）
-            </h2>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="app-table">
-                <thead>
-                  <tr>
-                    <th>门店名称</th>
-                    <th style={{ textAlign: 'center' }}>容量</th>
-                    <th style={{ textAlign: 'center' }}>已报名</th>
-                    <th style={{ textAlign: 'center' }}>剩余</th>
-                    <th style={{ textAlign: 'center' }}>状态</th>
-                    <th style={{ textAlign: 'center' }}>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {nonServiceStores.map((store) => (
-                    <tr key={store.name}>
-                      <td>{store.name}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 600 }}>
-                        {editingStore?.name === store.name ? (
-                          <input
-                            type="number"
-                            value={newCapacity}
-                            onChange={(e) => setNewCapacity(e.target.value)}
-                            className="app-input"
-                            style={{ width: '60px', textAlign: 'center', padding: '4px 8px' }}
-                            min="1"
-                          />
-                        ) : (
-                          store.capacity
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{store.enrolled}</td>
                       <td style={{ textAlign: 'center' }}>
                         <span style={{ 
                           fontWeight: 700,
@@ -574,6 +520,14 @@ function Admin() {
               marginBottom: '20px'
             }}>
               分配详情
+              <span style={{ 
+                fontSize: '0.85rem', 
+                color: 'var(--ink-faint)',
+                fontWeight: 400,
+                marginLeft: '8px'
+              }}>
+                共{stats.totalAllocated}人已分配
+              </span>
             </h2>
             {!results.allocations || Object.keys(results.allocations).length === 0 ? (
               <p style={{ 
@@ -707,6 +661,79 @@ function Admin() {
                 保存
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 分配详情弹窗 */}
+      {showAllocationDetail && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 1000,
+          background: 'rgba(0,0,0,.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{
+            background: 'var(--cream)',
+            borderRadius: '16px',
+            padding: '2rem',
+            maxWidth: '500px',
+            width: '90%'
+          }}>
+            <h3 style={{ 
+              fontFamily: "'Noto Serif SC', serif",
+              fontSize: '1.1rem',
+              fontWeight: 700,
+              marginBottom: '16px'
+            }}>
+              📋 分配详情
+            </h3>
+            <p style={{ 
+              fontSize: '0.95rem', 
+              fontWeight: 600,
+              marginBottom: '16px'
+            }}>
+              {showAllocationDetail}
+            </p>
+            
+            {getAllocationDetails(showAllocationDetail).length === 0 ? (
+              <p style={{ color: 'var(--ink-faint)', textAlign: 'center', padding: '20px 0' }}>
+                暂无分配数据
+              </p>
+            ) : (
+              <div style={{ 
+                background: 'rgba(43,127,216,0.06)',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '16px'
+              }}>
+                {getAllocationDetails(showAllocationDetail).map((student, index) => (
+                  <div key={index} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between',
+                    padding: '8px 0',
+                    borderBottom: index < getAllocationDetails(showAllocationDetail).length - 1 ? '1px solid var(--border)' : 'none'
+                  }}>
+                    <span style={{ fontWeight: 600 }}>{student.studentName}</span>
+                    <span style={{ color: 'var(--ink-light)', fontSize: '0.85rem' }}>
+                      第{student.choice}志愿
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowAllocationDetail(null)}
+              className="btn-secondary"
+              style={{ width: '100%' }}
+            >
+              关闭
+            </button>
           </div>
         </div>
       )}
