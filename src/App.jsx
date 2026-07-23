@@ -540,7 +540,7 @@ function App() {
             fontSize: '0.9rem',
             fontWeight: 600
           }}>
-            ⏰ 当前不在填报时间内（{formatTime(config.startTime)} - {formatTime(config.endTime)}），门店暂不可选
+            ⏰ 当前不在填报时间内（{formatTime(config.startTime)} - {formatTime(config.endTime)}），可暂存志愿，正式提交需在规定时间内
           </div>
         )}
 
@@ -695,13 +695,12 @@ function App() {
                   {relevantStores.map((store) => {
                     const isFull = !store.available;
                     const isSelected = choices.includes(store.name);
-                    const isDisabled = isFull || !isWithinTime;
                     
                     return (
                       <tr 
                         key={store.name}
                         style={{ 
-                          opacity: isDisabled ? 0.5 : 1,
+                          opacity: isFull ? 0.5 : 1,
                           background: isSelected ? 'rgba(43,127,216,0.06)' : undefined
                         }}
                       >
@@ -745,20 +744,20 @@ function App() {
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <button
-                            onClick={() => !isDisabled && handleSelectStore(store.name)}
-                            disabled={isDisabled}
+                            onClick={() => !isFull && handleSelectStore(store.name)}
+                            disabled={isFull}
                             style={{
-                              background: isSelected ? 'var(--blue)' : isDisabled ? 'var(--border)' : 'transparent',
-                              color: isSelected ? 'white' : isDisabled ? 'var(--ink-faint)' : 'var(--blue)',
-                              border: isSelected ? 'none' : `1px solid ${isDisabled ? 'var(--border)' : 'var(--blue)'}`,
+                              background: isSelected ? 'var(--blue)' : isFull ? 'var(--border)' : 'transparent',
+                              color: isSelected ? 'white' : isFull ? 'var(--ink-faint)' : 'var(--blue)',
+                              border: isSelected ? 'none' : `1px solid ${isFull ? 'var(--border)' : 'var(--blue)'}`,
                               borderRadius: '6px',
                               padding: '6px 12px',
                               fontSize: '0.8rem',
-                              cursor: isDisabled ? 'not-allowed' : 'pointer',
+                              cursor: isFull ? 'not-allowed' : 'pointer',
                               fontWeight: 600
                             }}
                           >
-                            {isSelected ? '已选' : isDisabled ? '不可选' : '选择'}
+                            {isSelected ? '已选' : isFull ? '已满' : '选择'}
                           </button>
                         </td>
                       </tr>
