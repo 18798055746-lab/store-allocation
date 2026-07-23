@@ -76,7 +76,7 @@ function App() {
   const handleSaveDraft = async () => {
     const vc = choices.filter(c => c !== null);
     if (!vc.length) { setError('请至少选1个'); return; }
-    setLoading(true);
+    setLoading(true); setError('');
     try {
       const res = await axios.post('/api/draft', { studentId: student.id, name: student.name, choices: vc });
       if (res.data.success) { setDraftSaved(true); setTimeout(() => setDraftSaved(false), 3000); }
@@ -255,7 +255,7 @@ function App() {
                 <div style={{ marginBottom: 12 }}><span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>🚗 距科技园：</span><span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{selectedStore.distance || '暂无'} 公里</span></div>
                 <div><span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>👥 容纳：</span><span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{selectedStore.capacity} 人</span></div>
               </div>
-              {selectedStore.address && <a href={`https://uri.amap.com/marker?name=${encodeURIComponent(selectedStore.name)}&address=${encodeURIComponent(selectedStore.address)}`} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: 12 }}>🗺️ 高德地图导航</a>}
+              <a href={`https://uri.amap.com/search?keyword=${encodeURIComponent(selectedStore.name)}`} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', marginBottom: 12 }}>🗺️ 高德地图导航</a>
               <button onClick={() => setSelectedStore(null)} className="btn-secondary" style={{ width: '100%' }}>关闭</button>
             </div>
           </div>
