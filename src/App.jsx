@@ -191,13 +191,13 @@ function App() {
               <button onClick={handleBack} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 4, padding: '4px 8px', fontSize: '0.75rem', color: 'var(--ink-light)', cursor: 'pointer' }}>退出</button>
             </div>
           </div>
-          {/* 志愿状态条 */}
-          <div style={{ display: 'flex', gap: 6 }}>
+          {/* 志愿状态 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {choices.map((c, i) => (
-              <div key={i} style={{ flex: 1, background: c ? 'var(--blue)' : 'var(--border)', borderRadius: 6, padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: c ? 'white' : 'var(--ink-faint)' }}>{i + 1}</span>
-                <span style={{ fontSize: '0.7rem', color: c ? 'white' : 'var(--ink-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c || '未选'}</span>
-                {c && <button onClick={() => handleRemoveChoice(i)} style={{ background: 'none', border: 'none', color: c ? 'rgba(255,255,255,0.7)' : 'var(--ink-faint)', cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}>×</button>}
+              <div key={i} style={{ background: c ? 'var(--blue)' : 'var(--border)', borderRadius: 8, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: c ? 'white' : 'var(--ink-faint)', flexShrink: 0 }}>第{i + 1}志愿</span>
+                <span style={{ fontSize: '0.8rem', color: c ? 'white' : 'var(--ink-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{c || '未选择'}</span>
+                {c && <button onClick={() => handleRemoveChoice(i)} style={{ background: 'none', border: 'none', color: c ? 'rgba(255,255,255,0.7)' : 'var(--ink-faint)', cursor: 'pointer', fontSize: '0.9rem', padding: '0 4px', flexShrink: 0 }}>×</button>}
               </div>
             ))}
           </div>
