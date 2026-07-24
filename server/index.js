@@ -717,14 +717,15 @@ async function getFeishuToken() {
 async function feishuListRecords(token, tableId) {
   let allRecords = [];
   let pageToken = '';
-  do {
+  let hasMore = true;
+  while (hasMore) {
     const url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU_APP_TOKEN}/tables/${tableId}/records?page_size=100${pageToken ? '&page_token=' + pageToken : ''}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (data.data?.items) allRecords.push(...data.data.items);
     pageToken = data.data?.page_token || '';
     hasMore = data.data?.has_more || false;
-  } while (hasMore);
+  }
   return allRecords;
 }
 
