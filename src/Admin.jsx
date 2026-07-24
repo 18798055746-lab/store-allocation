@@ -98,7 +98,7 @@ function Admin() {
   };
 
   const handleSync = async (type) => {
-    if (!window.confirm(`确定从飞书同步${type === 'stores' ? '门店' : '学员'}信息？这会覆盖当前数据。`)) return;
+    if (!window.confirm(`确定从飞书同步${type === 'stores' ? '门店' : '学员'}信息？${type === 'students' ? '新学员会自动添加，已有学员信息会更新' : '门店数据会全量更新'}`)) return;
     setImporting(true);
     try {
       const res = await axios.post(`/api/admin/sync-${type}`);
