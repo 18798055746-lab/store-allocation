@@ -192,7 +192,7 @@ function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className={`badge ${student.type === '服务' ? 'badge-service' : 'badge-non-service'}`}>{student.type}类</span>
             <span style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>{student.name}</span>
-            <button onClick={handleBack} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', color: 'var(--ink-light)', cursor: 'pointer' }}>切换</button>
+            <button onClick={handleBack} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', color: 'var(--ink-light)', cursor: 'pointer' }}>退出登录</button>
           </div>
         </header>
         {config && !isWithinTime && <div style={{ background: 'var(--yellow)', padding: '12px 1.5rem', textAlign: 'center', fontSize: '0.9rem', fontWeight: 600 }}>⏰ 不在填报时间内（{fmt(config.startTime)} ~ {fmt(config.endTime)}），可暂存，正式提交需在规定时间内</div>}
