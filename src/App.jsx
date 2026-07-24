@@ -117,7 +117,7 @@ function App() {
   };
 
   const handleBack = () => {
-    setStep(1); setStudent(null); setStudentId(''); setName('');
+    setStep(0); setStudent(null); setStudentId(''); setName('');
     setChoices([null, null, null]); setError(''); setResult(null); setDraftSaved(false);
   };
 
@@ -128,7 +128,7 @@ function App() {
     return stores.filter(s => s.type === student.type && s.name.includes(searchTerm));
   };
 
-  // ===== 首页 =====
+  // ===== 首页（含登录） =====
   if (step === 0) return (
     <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
       <header style={{ height: 56, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -167,34 +167,18 @@ function App() {
               <div style={{ fontSize: '0.85rem', color: 'var(--ink-light)' }}>非服务类门店</div>
             </div>
           </div>
-          <button onClick={() => setStep(1)} className="btn-primary" style={{ width: '100%', padding: 14, fontSize: '1rem' }}>开始填报</button>
+          {/* 登录区域 */}
+          <div style={{ background: 'rgba(43,127,216,0.04)', borderRadius: 12, padding: 20, marginBottom: 0 }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 16, textAlign: 'center' }}>👤 请使用工号和姓名登录</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div><label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6 }}>工号</label><input type="text" value={studentId} onChange={e => setStudentId(e.target.value)} className="app-input" placeholder="请输入工号" /></div>
+              <div><label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 6 }}>姓名</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="app-input" placeholder="请输入姓名" /></div>
+            </div>
+            {error && <div style={{ color: 'var(--red)', fontSize: '0.85rem', textAlign: 'center', background: 'rgba(232,74,95,0.08)', padding: 10, borderRadius: 8, marginBottom: 12 }}>{error}</div>}
+            <button onClick={handleVerify} disabled={loading} className="btn-primary" style={{ width: '100%', padding: 14, fontSize: '1rem' }}>{loading ? '验证中...' : '开始填报'}</button>
+          </div>
         </div>
       </main>
-    </div>
-  );
-
-  // ===== 登录 =====
-  if (step === 1) return (
-    <div style={{ background: 'var(--cream)', minHeight: '100vh' }}>
-      <header style={{ height: 56, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1.5rem' }}>
-        <button onClick={() => setStep(0)} style={{ background: 'none', border: 'none', color: 'var(--blue)', cursor: 'pointer', fontSize: '0.9rem' }}>← 返回</button>
-        <h1 style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1.1rem', fontWeight: 700 }}>身份验证</h1>
-        <div style={{ width: 60 }}></div>
-      </header>
-      <div style={{ maxWidth: 400, margin: '0 auto', padding: '2rem 1.5rem' }}>
-        <div className="card fade-in">
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ fontSize: '3rem', marginBottom: 16 }}>👤</div>
-            <h2 style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1.3rem', fontWeight: 700 }}>请输入你的信息</h2>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div><label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 8 }}>工号</label><input type="text" value={studentId} onChange={e => setStudentId(e.target.value)} className="app-input" placeholder="请输入工号" /></div>
-            <div><label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 8 }}>姓名</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="app-input" placeholder="请输入姓名" /></div>
-            {error && <div style={{ color: 'var(--red)', fontSize: '0.85rem', textAlign: 'center', background: 'rgba(232,74,95,0.08)', padding: 12, borderRadius: 8 }}>{error}</div>}
-            <button onClick={handleVerify} disabled={loading} className="btn-primary" style={{ width: '100%', marginTop: 8 }}>{loading ? '验证中...' : '验证身份'}</button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 
