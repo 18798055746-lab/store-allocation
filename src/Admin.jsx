@@ -186,24 +186,41 @@ function Admin() {
 
         {/* 分配详情 */}
         {activeTab === 'details' && (
-          <div className="card fade-in">
+          <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1.1rem', fontWeight: 700 }}>分配详情 <span style={{ fontSize: '0.85rem', color: 'var(--ink-faint)', fontWeight: 400, marginLeft: 8 }}>共{stats.totalAllocated}人</span></h2>
+              <h2 style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1.1rem', fontWeight: 700 }}>分配详情 <span style={{ fontSize: '0.85rem', color: 'var(--ink-faint)', fontWeight: 400, marginLeft: 8 }}>共{stats.totalAllocated}人已分配</span></h2>
               {stats.totalAllocated > 0 && <button onClick={handleClearAllocations} style={{ background: 'var(--red)', color: 'white', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>🗑️ 清空所有</button>}
             </div>
-            {!results.allocations || Object.keys(results.allocations).length === 0 ? (
-              <p style={{ color: 'var(--ink-faint)', textAlign: 'center', padding: '40px 0', fontSize: '0.9rem' }}>暂无分配数据</p>
-            ) : (
+            {/* 服务类门店 */}
+            <div className="card fade-in" style={{ marginBottom: 16 }}>
+              <h3 style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1rem', fontWeight: 700, marginBottom: 16, color: 'var(--blue)' }}>
+                服务类门店（{serviceStores.length}家）
+              </h3>
               <div style={{ overflowX: 'auto' }}>
                 <table className="app-table">
-                  <thead><tr><th>门店</th><th style={{ textAlign: 'center' }}>人数</th><th>学员</th></tr></thead>
-                  <tbody>{Object.entries(results.allocations).map(([sn, ss]) => (
-                    <tr key={sn}><td>{sn}</td><td style={{ textAlign: 'center', fontWeight: 600 }}>{ss.length}</td>
-                    <td><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{ss.map((s, i) => <span key={i} style={{ padding: '4px 10px', background: 'var(--cream)', borderRadius: 6, fontSize: '0.85rem', border: '1px solid var(--border)' }}>{s.studentName}<span style={{ color: 'var(--ink-faint)', marginLeft: 4, fontSize: '0.75rem' }}>第{s.choice}志愿</span></span>)}</div></td></tr>
-                  ))}</tbody>
+                  <thead><tr><th>门店</th><th style={{ textAlign: 'center' }}>容量</th><th style={{ textAlign: 'center' }}>已分配</th><th style={{ textAlign: 'center' }}>剩余</th><th>学员</th></tr></thead>
+                  <tbody>{serviceStores.map(s => {
+                    const allocs = results.allocations?.[s.name] || [];
+                    return <tr key={s.name}><td>{s.name}</td><td style={{ textAlign: 'center' }}>{s.capacity}</td><td style={{ textAlign: 'center', fontWeight: 600 }}>{allocs.length}</td><td style={{ textAlign: 'center' }}><span style={{ fontWeight: 700, color: s.remaining > 0 ? '#2d6a4f' : 'var(--red)' }}>{s.remaining}</span></td><td>{allocs.length > 0 ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{allocs.map((a, i) => <span key={i} style={{ padding: '2px 8px', background: 'var(--cream)', borderRadius: 4, fontSize: '0.8rem', border: '1px solid var(--border)' }}>{a.studentName}</span>)}</div> : <span style={{ color: 'var(--ink-faint)', fontSize: '0.85rem' }}>-</span>}</td></tr>;
+                  })}</tbody>
                 </table>
               </div>
-            )}
+            </div>
+            {/* 非服务类门店 */}
+            <div className="card fade-in">
+              <h3 style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1rem', fontWeight: 700, marginBottom: 16, color: 'var(--red)' }}>
+                非服务类门店（{nonServiceStores.length}家）
+              </h3>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="app-table">
+                  <thead><tr><th>门店</th><th style={{ textAlign: 'center' }}>容量</th><th style={{ textAlign: 'center' }}>已分配</th><th style={{ textAlign: 'center' }}>剩余</th><th>学员</th></tr></thead>
+                  <tbody>{nonServiceStores.map(s => {
+                    const allocs = results.allocations?.[s.name] || [];
+                    return <tr key={s.name}><td>{s.name}</td><td style={{ textAlign: 'center' }}>{s.capacity}</td><td style={{ textAlign: 'center', fontWeight: 600 }}>{allocs.length}</td><td style={{ textAlign: 'center' }}><span style={{ fontWeight: 700, color: s.remaining > 0 ? '#2d6a4f' : 'var(--red)' }}>{s.remaining}</span></td><td>{allocs.length > 0 ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{allocs.map((a, i) => <span key={i} style={{ padding: '2px 8px', background: 'var(--cream)', borderRadius: 4, fontSize: '0.8rem', border: '1px solid var(--border)' }}>{a.studentName}</span>)}</div> : <span style={{ color: 'var(--ink-faint)', fontSize: '0.85rem' }}>-</span>}</td></tr>;
+                  })}</tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
