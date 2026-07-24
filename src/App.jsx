@@ -208,6 +208,9 @@ function App() {
 
         {/* 操作按钮 */}
         <div style={{ padding: '10px 1rem', display: 'flex', gap: 8 }}>
+          {choices.some(c => c !== null) && (
+            <button onClick={() => { setChoices([null, null, null]); setDraftSaved(false); }} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '10px', fontSize: '0.8rem', color: 'var(--ink-light)', cursor: 'pointer', flexShrink: 0 }}>清空</button>
+          )}
           <button onClick={handleSaveDraft} disabled={loading || choices.every(c => c === null)} className="btn-secondary" style={{ flex: 1, padding: '10px', fontSize: '0.85rem' }}>{loading ? '...' : '暂存'}</button>
           <button onClick={handleSubmit} disabled={loading || choices.every(c => c === null) || !isWithinTime} className="btn-primary" style={{ flex: 1, padding: '10px', fontSize: '0.85rem' }}>{loading ? '...' : '确认提交'}</button>
         </div>
