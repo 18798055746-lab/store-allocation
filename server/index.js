@@ -757,7 +757,7 @@ app.post('/api/admin/sync-stores', async (req, res) => {
   }
 });
 
-// API: 从飞书同步学员信息
+// API: 从飞书同步学员信息（增量同步，只添加新学员，更新已有学员信息）
 app.post('/api/admin/sync-students', async (req, res) => {
   if (!FEISHU_APP_ID || !FEISHU_APP_SECRET) {
     return res.json({ success: false, message: '未配置飞书应用凭证（FEISHU_APP_ID / FEISHU_APP_SECRET）' });
@@ -765,11 +765,9 @@ app.post('/api/admin/sync-students', async (req, res) => {
   try {
     const token = await getFeishuToken();
     const records = await feishuListRecords(token, FEISHU_STUDENTS_TABLE);
-    const students = {};
-    let count = 0;
+    let added = 0, updated = 0;
     records.forEach(r => {
       const id = r.fields['工号'];
-      // 姓名字段可能是 User 类型（数组）或文本
       let name = '';
       const nameField = r.fields['姓名'];
       if (Array.isArray(nameField)) {
@@ -783,13 +781,19 @@ app.post('/api/admin/sync-students', async (req, res) => {
       const dept4 = r.fields['四级部门'] || '';
       const dept5 = r.fields['五级部门'] || '';
       if (id && name) {
-        students[id] = { id, name, type, dept1: '中国区', dept2: dept, dept3, dept4, dept5, jobTitle: '' };
-        count++;
+        if (studentsData[id]) {
+          // 已有学员，更新信息
+          Object.assign(studentsData[id], { name, type, dept1: '中国区', dept2: dept, dept3, dept4, dept5 });
+          updated++;
+        } else {
+          // 新学员，添加
+          studentsData[id] = { id, name, type, dept1: '中国区', dept2: dept, dept3, dept4, dept5, jobTitle: '' };
+          added++;
+        }
       }
     });
-    studentsData = students;
     fs.writeFileSync(STUDENTS_FILE, JSON.stringify(studentsData, null, 2));
-    res.json({ success: true, message: `同步完成：${count} 名学员` });
+    res.json({ success: true, message: `同步完成：新增 ${added} 人，更新 ${updated} 人，共 ${Object.keys(studentsData).length} 人` });
   } catch (e) {
     console.error('同步学员失败:', e.message);
     res.json({ success: false, message: '同步失败: ' + e.message });
