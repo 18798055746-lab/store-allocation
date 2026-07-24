@@ -687,6 +687,114 @@ app.delete('/api/admin/student/:studentId', (req, res) => {
   res.json({ success: true, message: `已删除学员 ${name}` });
 });
 
+// API: 清空所有学员
+app.post('/api/admin/clear-students', (req, res) => {
+  const count = Object.keys(studentsData).length;
+  studentsData = {};
+  fs.writeFileSync(STUDENTS_FILE, JSON.stringify(studentsData, null, 2));
+  res.json({ success: true, message: `已清空 ${count} 名学员` });
+});
+
+// 飞书配置
+const FEISHU_APP_ID = process.env.FEISHU_APP_ID || '';
+const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || '';
+const FEISHU_APP_TOKEN = 'NKf3bzWUHaDFOusVstnc6PG4nPd';
+const FEISHU_STORES_TABLE = 'tblgph76wLZmAB2L';
+const FEISHU_STUDENTS_TABLE = 'tbl3M1FF07M6XcZm';
+
+// 获取飞书 tenant_access_token
+async function getFeishuToken() {
+  const res = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ app_id: FEISHU_APP_ID, app_secret: FEISHU_APP_SECRET })
+  });
+  const data = await res.json();
+  return data.tenant_access_token;
+}
+
+// 从飞书读取多维表记录（自动翻页）
+async function feishuListRecords(token, tableId) {
+  let allRecords = [];
+  let pageToken = '';
+  do {
+    const url = `https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU_APP_TOKEN}/tables/${tableId}/records?page_size=100${pageToken ? '&page_token=' + pageToken : ''}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await res.json();
+    if (data.data?.items) allRecords.push(...data.data.items);
+    pageToken = data.data?.page_token || '';
+    hasMore = data.data?.has_more || false;
+  } while (hasMore);
+  return allRecords;
+}
+
+// API: 从飞书同步门店信息
+app.post('/api/admin/sync-stores', async (req, res) => {
+  if (!FEISHU_APP_ID || !FEISHU_APP_SECRET) {
+    return res.json({ success: false, message: '未配置飞书应用凭证（FEISHU_APP_ID / FEISHU_APP_SECRET）' });
+  }
+  try {
+    const token = await getFeishuToken();
+    const records = await feishuListRecords(token, FEISHU_STORES_TABLE);
+    const service = [];
+    const nonService = [];
+    records.forEach(r => {
+      const name = r.fields['门店列表'];
+      const capacity = parseInt(r.fields['门店可容纳人数']) || 0;
+      const type = r.fields['适配范围'] || '非服务';
+      if (name && capacity > 0) {
+        const store = { name, capacity, type: type === '服务' ? '服务' : '非服务' };
+        store.type === '服务' ? service.push(store) : nonService.push(store);
+      }
+    });
+    storesData = { service, nonService };
+    saveStores();
+    res.json({ success: true, message: `同步完成：服务类${service.length}家，非服务类${nonService.length}家` });
+  } catch (e) {
+    console.error('同步门店失败:', e.message);
+    res.json({ success: false, message: '同步失败: ' + e.message });
+  }
+});
+
+// API: 从飞书同步学员信息
+app.post('/api/admin/sync-students', async (req, res) => {
+  if (!FEISHU_APP_ID || !FEISHU_APP_SECRET) {
+    return res.json({ success: false, message: '未配置飞书应用凭证（FEISHU_APP_ID / FEISHU_APP_SECRET）' });
+  }
+  try {
+    const token = await getFeishuToken();
+    const records = await feishuListRecords(token, FEISHU_STUDENTS_TABLE);
+    const students = {};
+    let count = 0;
+    records.forEach(r => {
+      const id = r.fields['工号'];
+      // 姓名字段可能是 User 类型（数组）或文本
+      let name = '';
+      const nameField = r.fields['姓名'];
+      if (Array.isArray(nameField)) {
+        name = nameField[0]?.name || '';
+      } else if (typeof nameField === 'string') {
+        name = nameField;
+      }
+      const dept = r.fields['二级部门'] || '';
+      const type = dept === '服务部' ? '服务' : '非服务';
+      const dept3 = r.fields['三级部门'] || '';
+      const dept4 = r.fields['四级部门'] || '';
+      const dept5 = r.fields['五级部门'] || '';
+      if (id && name) {
+        students[id] = { id, name, type, dept1: '中国区', dept2: dept, dept3, dept4, dept5, jobTitle: '' };
+        count++;
+      }
+    });
+    studentsData = students;
+    fs.writeFileSync(STUDENTS_FILE, JSON.stringify(studentsData, null, 2));
+    res.json({ success: true, message: `同步完成：${count} 名学员` });
+  } catch (e) {
+    console.error('同步学员失败:', e.message);
+    res.json({ success: false, message: '同步失败: ' + e.message });
+  }
+});
+
 // 生产环境：托管前端静态文件
 if (process.env.NODE_ENV === 'production') {
   const clientDist = path.join(__dirname, '..', 'dist');

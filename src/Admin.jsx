@@ -89,6 +89,24 @@ function Admin() {
     } catch (e) { alert('删除失败'); }
   };
 
+  const handleClearStudents = async () => {
+    if (!window.confirm('确定清空所有学员？此操作不可恢复！')) return;
+    try {
+      const res = await axios.post('/api/admin/clear-students');
+      alert(res.data.message); fetchData();
+    } catch (e) { alert('操作失败'); }
+  };
+
+  const handleSync = async (type) => {
+    if (!window.confirm(`确定从飞书同步${type === 'stores' ? '门店' : '学员'}信息？这会覆盖当前数据。`)) return;
+    setImporting(true);
+    try {
+      const res = await axios.post(`/api/admin/sync-${type}`);
+      alert(res.data.message); if (res.data.success) fetchData();
+    } catch (e) { alert('同步失败'); }
+    finally { setImporting(false); }
+  };
+
   const serviceStores = stores.filter(s => s.type === '服务');
   const nonServiceStores = stores.filter(s => s.type === '非服务');
   const stats = {
@@ -108,6 +126,8 @@ function Admin() {
       <header style={{ position: 'sticky', top: 0, zIndex: 100, height: 56, background: 'var(--cream)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1.5rem', flexWrap: 'wrap', gap: 8 }}>
         <h1 style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1.1rem', fontWeight: 700 }}>📊 管理员后台</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={() => handleSync('stores')} disabled={importing} style={{ background: '#7c3aed', color: 'white', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>{importing ? '...' : '🔄 同步门店'}</button>
+          <button onClick={() => handleSync('students')} disabled={importing} style={{ background: '#7c3aed', color: 'white', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>{importing ? '...' : '🔄 同步学员'}</button>
           <label style={{ background: 'var(--blue)', color: 'white', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
             {importing ? '...' : '📥 导入门店'}<input type="file" accept=".xlsx,.xls" onChange={e => handleImport(e, 'stores')} style={{ display: 'none' }} />
           </label>
@@ -227,9 +247,15 @@ function Admin() {
         {/* 学员清单 */}
         {activeTab === 'students' && (
           <div className="card fade-in">
-            <h2 style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1.1rem', fontWeight: 700, marginBottom: 20 }}>
-              学员清单 <span style={{ fontSize: '0.85rem', color: 'var(--ink-faint)', fontWeight: 400, marginLeft: 8 }}>共{students.length}人</span>
-            </h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontFamily: "'Noto Serif SC',serif", fontSize: '1.1rem', fontWeight: 700 }}>
+                学员清单 <span style={{ fontSize: '0.85rem', color: 'var(--ink-faint)', fontWeight: 400, marginLeft: 8 }}>共{students.length}人</span>
+              </h2>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => handleSync('students')} disabled={importing} style={{ background: '#7c3aed', color: 'white', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>{importing ? '...' : '🔄 从飞书同步'}</button>
+                <button onClick={handleClearStudents} style={{ background: 'var(--red)', color: 'white', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>🗑️ 清空学员</button>
+              </div>
+            </div>
             {/* 添加学员 */}
             <div style={{ background: 'rgba(43,127,216,0.04)', borderRadius: 12, padding: 16, marginBottom: 20 }}>
               <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 12 }}>添加学员</h3>
