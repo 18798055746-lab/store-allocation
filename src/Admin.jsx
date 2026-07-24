@@ -129,11 +129,11 @@ function Admin() {
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: '2rem 1.5rem' }}>
         {/* 统计卡片 */}
         {activeTab !== 'students' && (
-          <div style={{ display: 'grid', gridTemplateColumns: activeTab === 'overview' ? 'repeat(4,1fr)' : 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
-            {activeTab === 'overview' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: (activeTab === 'overview' || activeTab === 'details') ? 'repeat(4,1fr)' : 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+            {(activeTab === 'overview' || activeTab === 'details') ? (
               <>
-                <div className="card" style={{ textAlign: 'center' }}><div className="stat-number" style={{ color: 'var(--blue)' }}>{stats.totalStores}</div><div className="stat-label">总门店数</div></div>
-                <div className="card" style={{ textAlign: 'center' }}><div className="stat-number" style={{ color: '#2d6a4f' }}>{stats.serviceCapacity + stats.nonServiceCapacity}</div><div className="stat-label">总容量</div></div>
+                <div className="card" style={{ textAlign: 'center' }}><div className="stat-number" style={{ color: 'var(--blue)' }}>{stats.totalStores}</div><div className="stat-label">总门店数（服务{stats.serviceStores}+非服务{stats.nonServiceStores}）</div></div>
+                <div className="card" style={{ textAlign: 'center' }}><div className="stat-number" style={{ color: '#2d6a4f' }}>{stats.serviceCapacity + stats.nonServiceCapacity}</div><div className="stat-label">总容量（服务{stats.serviceCapacity}+非服务{stats.nonServiceCapacity}）</div></div>
                 <div className="card" style={{ textAlign: 'center' }}><div className="stat-number" style={{ color: 'var(--yellow)' }}>{stats.totalAllocated}</div><div className="stat-label">已分配</div></div>
                 <div className="card" style={{ textAlign: 'center' }}><div className="stat-number" style={{ color: 'var(--red)' }}>{stats.serviceCapacity + stats.nonServiceCapacity - stats.totalAllocated}</div><div className="stat-label">剩余名额</div></div>
               </>
