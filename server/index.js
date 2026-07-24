@@ -800,6 +800,68 @@ app.post('/api/admin/sync-students', async (req, res) => {
   }
 });
 
+// API: 同步分配结果到飞书参训学员信息表
+app.post('/api/admin/sync-to-feishu', async (req, res) => {
+  if (!FEISHU_APP_ID || !FEISHU_APP_SECRET) {
+    return res.json({ success: false, message: '未配置飞书应用凭证' });
+  }
+  try {
+    const token = await getFeishuToken();
+    // 先读取学员表，获取工号和record_id的映射
+    const studentRecords = await feishuListRecords(token, FEISHU_STUDENTS_TABLE);
+    const studentMap = {};
+    studentRecords.forEach(r => {
+      const id = r.fields['工号'];
+      if (id) studentMap[id] = r.record_id;
+    });
+
+    // 检查学员表是否有"分配门店"字段，没有则创建
+    const fieldsRes = await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU_APP_TOKEN}/tables/${FEISHU_STUDENTS_TABLE}/fields`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const fieldsData = await fieldsRes.json();
+    const hasField = fieldsData.data?.items?.some(f => f.field_name === '分配门店');
+    
+    if (!hasField) {
+      // 创建"分配门店"字段
+      await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU_APP_TOKEN}/tables/${FEISHU_STUDENTS_TABLE}/fields`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field_name: '分配门店', type: 1 }) // 1 = Text
+      });
+    }
+
+    // 批量更新分配结果
+    let updated = 0;
+    const batchSize = 100;
+    const allocs = allocationsData.allocations;
+    
+    for (let i = 0; i < allocs.length; i += batchSize) {
+      const batch = allocs.slice(i, i + batchSize);
+      const records = batch
+        .filter(a => studentMap[a.studentId])
+        .map(a => ({
+          record_id: studentMap[a.studentId],
+          fields: { '分配门店': a.store }
+        }));
+      
+      if (records.length > 0) {
+        await fetch(`https://open.feishu.cn/open-apis/bitable/v1/apps/${FEISHU_APP_TOKEN}/tables/${FEISHU_STUDENTS_TABLE}/records/batch_update`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ records })
+        });
+        updated += records.length;
+      }
+    }
+
+    res.json({ success: true, message: `已同步 ${updated} 条分配结果到飞书` });
+  } catch (e) {
+    console.error('同步到飞书失败:', e.message);
+    res.json({ success: false, message: '同步失败: ' + e.message });
+  }
+});
+
 // 生产环境：托管前端静态文件
 if (process.env.NODE_ENV === 'production') {
   const clientDist = path.join(__dirname, '..', 'dist');

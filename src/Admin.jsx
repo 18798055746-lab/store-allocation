@@ -107,6 +107,16 @@ function Admin() {
     finally { setImporting(false); }
   };
 
+  const handleSyncToFeishu = async () => {
+    if (!window.confirm('确定把分配结果同步到飞书参训学员信息表？')) return;
+    setImporting(true);
+    try {
+      const res = await axios.post('/api/admin/sync-to-feishu');
+      alert(res.data.message);
+    } catch (e) { alert('同步失败'); }
+    finally { setImporting(false); }
+  };
+
   const serviceStores = stores.filter(s => s.type === '服务');
   const nonServiceStores = stores.filter(s => s.type === '非服务');
   const stats = {
@@ -128,6 +138,7 @@ function Admin() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <button onClick={() => handleSync('stores')} disabled={importing} style={{ background: '#7c3aed', color: 'white', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>{importing ? '...' : '🔄 同步门店'}</button>
           <button onClick={() => handleSync('students')} disabled={importing} style={{ background: '#7c3aed', color: 'white', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>{importing ? '...' : '🔄 同步学员'}</button>
+          <button onClick={handleSyncToFeishu} disabled={importing || stats.totalAllocated === 0} style={{ background: '#059669', color: 'white', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>{importing ? '...' : '📤 同步到飞书'}</button>
           <label style={{ background: 'var(--blue)', color: 'white', borderRadius: 6, padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}>
             {importing ? '...' : '📥 导入门店'}<input type="file" accept=".xlsx,.xls" onChange={e => handleImport(e, 'stores')} style={{ display: 'none' }} />
           </label>
