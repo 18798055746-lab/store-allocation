@@ -696,8 +696,8 @@ app.post('/api/admin/clear-students', (req, res) => {
 });
 
 // 飞书配置
-const FEISHU_APP_ID = process.env.FEISHU_APP_ID || '';
-const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || '';
+const FEISHU_APP_ID = process.env.FEISHU_APP_ID || 'cli_a95721e82bfa9ccb';
+const FEISHU_APP_SECRET = process.env.FEISHU_APP_SECRET || 'j39E8A1vuLnhmsj7PHwiEgOL4izaxEEE';
 const FEISHU_APP_TOKEN = 'NKf3bzWUHaDFOusVstnc6PG4nPd';
 const FEISHU_STORES_TABLE = 'tblgph76wLZmAB2L';
 const FEISHU_STUDENTS_TABLE = 'tbl3M1FF07M6XcZm';
