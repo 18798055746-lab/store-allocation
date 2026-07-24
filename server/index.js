@@ -23,8 +23,8 @@ const STUDENTS_FILE = path.join(DATA_DIR, 'students.json');
 const ALLOCATIONS_FILE = path.join(DATA_DIR, 'allocations.json');
 const DRAFTS_FILE = path.join(DATA_DIR, 'drafts.json');
 
-// 志愿填报时间配置（正式时间：7月27日9:00 ~ 7月29日19:00）
-const ALLOCATION_START = new Date('2026-07-23T00:00:00+08:00'); // 临时开放测试，测完改回 7-27
+// 志愿填报时间配置
+const ALLOCATION_START = new Date('2026-07-27T09:00:00+08:00');
 const ALLOCATION_END = new Date('2026-07-29T19:00:00+08:00');
 
 // 内存缓存
